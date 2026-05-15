@@ -52,9 +52,9 @@ export function AppSidebar(): JSX.Element {
   return (
     <Sidebar className="border-r border-border bg-sidebar">
       <SidebarHeader className="p-4 border-b border-border bg-sidebar/50">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="p-1.5 rounded-lg bg-primary">
-            <Code2 className="w-5 h-5 text-primary-foreground" />
+        <div className="flex items-center gap-2 mb-4 px-1">
+          <div className="p-1.5 rounded-lg bg-primary flex items-center justify-center w-8 h-8">
+            <span className="text-lg">🎭</span>
           </div>
           <span className="font-display font-bold text-lg tracking-tight text-foreground">Dark GPT</span>
         </div>
