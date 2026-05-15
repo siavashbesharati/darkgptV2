@@ -56,7 +56,7 @@ export function AppSidebar(): JSX.Element {
           <div className="p-1.5 rounded-lg bg-primary">
             <Code2 className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-lg tracking-tight text-foreground">AetherCode</span>
+          <span className="font-display font-bold text-lg tracking-tight text-foreground">Dark GPT</span>
         </div>
         <SidebarMenu>
           <SidebarMenuItem>

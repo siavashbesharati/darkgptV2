@@ -46,7 +46,7 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
       const json = await res.json();
       if (json.success) {
         setAuth(json.data.user, json.data.token);
-        toast.success("Welcome to AetherCode!");
+        toast.success("Welcome to Dark GPT!");
         onOpenChange(false);
       } else {
         toast.error(json.error || "Invalid code");
@@ -68,7 +68,7 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
           </div>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="w-5 h-5 text-cyan-500" />
-            {step === 'email' ? 'Welcome to AetherCode' : 'Check your inbox'}
+            {step === 'email' ? 'Welcome to Dark GPT' : 'Check your inbox'}
           </DialogTitle>
           <DialogDescription>
             {step === 'email' ? 'Enter your email to sign in or create an account.' : 'We sent a 6-digit code to ' + email}

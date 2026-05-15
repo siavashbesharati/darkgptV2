@@ -35,7 +35,7 @@ export function Navbar({ showTrigger = false }: NavbarProps) {
               <Code2 className="w-5 h-5 text-primary-foreground" />
             </div>
             <span className="font-display font-bold text-xl tracking-tight text-foreground">
-              AetherCode
+              Dark GPT
             </span>
           </Link>
           <div className="hidden md:flex items-center gap-1 ml-4">
