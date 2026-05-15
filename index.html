@@ -2,12 +2,48 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
+    <title>Dark GPT | Elite Security Research AI</title>
+    <meta name="description" content="Discover Dark GPT - the advanced AI engine for vulnerability research, security simulations, and offensive code generation. Built for elite researchers." />
+    <meta name="keywords" content="AI, security research, vulnerability analysis, offensive security, Dark GPT, exploit synthesis, penetration testing, red team tools" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://dark-gpt.ai/" />
+    <meta property="og:title" content="Dark GPT | Elite Security Research AI" />
+    <meta property="og:description" content="Advanced AI engine for vulnerability research and security simulations. Breach the limits of code with Dark GPT." />
+    <meta property="og:image" content="/og-image.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://dark-gpt.ai/" />
+    <meta property="twitter:title" content="Dark GPT | Elite Security Research AI" />
+    <meta property="twitter:description" content="Advanced AI engine for vulnerability research and security simulations. Breach the limits of code with Dark GPT." />
+    <meta property="twitter:image" content="/og-image.png" />
+
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://dark-gpt.ai/" />
   </head>
   <body>
     <div id="root"></div>
+    <script>
+        window.addEventListener('error', (event) => {
+          const isOurAppError = event.filename && event.filename.startsWith(window.location.origin);
+          if (isOurAppError) {
+            navigator.sendBeacon('/api/client-errors', JSON.stringify({
+              message: event.message,
+              url: window.location.href,
+              userAgent: navigator.userAgent,
+              source: event.filename,
+              lineno: event.lineno,
+              colno: event.colno,
+              stack: event.error ? event.error.stack : null,
+              timestamp: new Date().toISOString()
+            }));
+          }
+        }, true);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
