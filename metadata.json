@@ -1,0 +1,6 @@
+{
+  "name": "DarkGPT AI",
+  "description": "An AI-powered application based on the DarkGPT project for advanced analysis and interaction.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
