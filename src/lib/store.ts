@@ -94,13 +94,14 @@ export const useStore = create<AppState>()(
         if (!token) return;
         try {
           const res = await fetch('/api/auth/me', {
-            headers: { 'Authorization': token }
+            headers: { 'Authorization': `Bearer ${token}` }
           });
           const json = await res.json();
           if (json.success && json.data) {
             set({ user: json.data });
           } else if (res.status === 401 || res.status === 404) {
-            set({ user: null, token: null, isAuthenticated: false });
+            // Token might be expired or user deleted
+            // Don't auto-logout here, let the UI handle it or wait for Firebase to refresh
           }
         } catch (e) {
           console.warn('Backend unavailable, using cached user data', e);
@@ -112,7 +113,7 @@ export const useStore = create<AppState>()(
         try {
           const res = await fetch('/api/credits/consume', {
             method: 'POST',
-            headers: { 'Authorization': token }
+            headers: { 'Authorization': `Bearer ${token}` }
           });
           const json = await res.json();
           if (json.success) {
@@ -135,7 +136,7 @@ export const useStore = create<AppState>()(
         try {
           const res = await fetch('/api/upgrade', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': token },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ tier, credits: finalCredits, transaction: tx })
           });
           if (res.ok) {

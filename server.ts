@@ -6,8 +6,15 @@ import OpenAI from "openai";
 import dotenv from "dotenv";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import admin from "firebase-admin";
 
 dotenv.config();
+
+// Initialize Firebase Admin
+admin.initializeApp({
+  projectId: "gifted-kite-6r8vp"
+});
+const fdb = admin.firestore();
 
 const SETTINGS_FILE = path.join(process.cwd(), "settings.json");
 
@@ -98,6 +105,24 @@ async function startServer() {
   let plans = initialData.plans;
 
   app.use(express.json());
+
+  // --- Auth Middleware ---
+  const authenticate = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const authHeader = req.headers["authorization"];
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ success: false, error: "Unauthorized: Missing or invalid token format" });
+    }
+
+    const idToken = authHeader.split("Bearer ")[1];
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      (req as any).user = decodedToken;
+      next();
+    } catch (error) {
+      console.error("Token verification failed:", error);
+      res.status(401).json({ success: false, error: "Unauthorized: Invalid token" });
+    }
+  };
   
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
@@ -110,78 +135,58 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  // --- In-memory storage ---
-  const users = new Map();
-  const sessions = new Map();
-  const messages = new Map(); // sessionId -> Message[]
-  const otps = new Map();
-  const allTransactions: any[] = [];
+  // --- Firestore storage ---
+  // Users, sessions, and messages are now stored in Firestore
 
-  // Seed admin user
-  const adminId = "admin-123";
-  users.set(adminId, {
-    id: adminId,
-    email: "siavashbesharati@gmail.com",
-    tier: "Max",
-    credits: 99999,
-    isAdmin: true,
-    blocked: false,
-    createdAt: Date.now(),
-  });
-
-  // --- Auth Routes ---
-  app.post("/api/auth/send-otp", (req, res) => {
-    const { email } = req.body;
-    otps.set(email, { code: "123456", expires: Date.now() + 600000 });
-    res.json({ success: true, message: "OTP sent to email (Demo code: 123456)" });
-  });
-
-  app.post("/api/auth/verify-otp", (req, res) => {
-    const { email, code } = req.body;
-    if (code !== "123456") {
-      return res.status(400).json({ success: false, error: "Invalid OTP" });
-    }
-
-    let user = Array.from(users.values()).find((u) => u.email === email);
-    if (user?.blocked) {
-      return res.status(403).json({ success: false, error: "User Blocked" });
-    }
-
-    if (!user) {
-      user = {
-        id: crypto.randomUUID(),
-        email,
+  // Seed admin user in Firestore (one-time logic or just check on login)
+  const syncUser = async (decodedToken: any) => {
+    const userRef = fdb.collection("users").doc(decodedToken.uid);
+    const doc = await userRef.get();
+    
+    if (!doc.exists) {
+      const newUser = {
+        id: decodedToken.uid,
+        email: decodedToken.email,
         tier: "Free",
         credits: 10,
-        isAdmin: email === "siavashbesharati@gmail.com",
+        isAdmin: decodedToken.email === "siavashbesharati@gmail.com",
         blocked: false,
         createdAt: Date.now(),
       };
-      users.set(user.id, user);
+      await userRef.set(newUser);
+      return newUser;
     }
+    return doc.data();
+  };
 
-    res.json({ success: true, data: { user, token: user.id } });
-  });
-
-  app.get("/api/auth/me", (req, res) => {
-    const userId = req.headers["authorization"];
-    if (!userId) return res.status(401).json({ success: false, error: "No token" });
-    const user = users.get(userId);
-    if (!user) return res.status(404).json({ success: false, error: "User not found" });
-    res.json({ success: true, data: user });
+  // --- Auth Routes ---
+  app.get("/api/auth/me", authenticate, async (req, res) => {
+    const decodedToken = (req as any).user;
+    const userData = await syncUser(decodedToken);
+    if (userData?.blocked) {
+      return res.status(403).json({ success: false, error: "User Blocked" });
+    }
+    res.json({ success: true, data: userData });
   });
 
   // --- Session Routes ---
-  app.get("/api/sessions", (req, res) => {
-    const list = Array.from(sessions.values()).sort((a, b) => b.lastActive - a.lastActive);
+  app.get("/api/sessions", authenticate, async (req, res) => {
+    const decodedToken = (req as any).user;
+    const snapshot = await fdb.collection("sessions")
+      .where("userId", "==", decodedToken.uid)
+      .orderBy("lastActive", "desc")
+      .get();
+    
+    const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.json({ success: true, data: list });
   });
 
-  app.post("/api/sessions", (req, res) => {
+  app.post("/api/sessions", authenticate, async (req, res) => {
+    const decodedToken = (req as any).user;
     const { sessionId, title } = req.body;
     const now = Date.now();
-    sessions.set(sessionId, {
-      id: sessionId,
+    await fdb.collection("sessions").doc(sessionId).set({
+      userId: decodedToken.uid,
       title: title || `Chat ${new Date(now).toLocaleDateString()}`,
       createdAt: now,
       lastActive: now,
@@ -189,31 +194,47 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  app.delete("/api/sessions/:sessionId", (req, res) => {
+  app.delete("/api/sessions/:sessionId", authenticate, async (req, res) => {
+    const decodedToken = (req as any).user;
     const { sessionId } = req.params;
-    sessions.delete(sessionId);
-    messages.delete(sessionId);
+    
+    // Safety check: ensure session belongs to user
+    const sessionDoc = await fdb.collection("sessions").doc(sessionId).get();
+    if (sessionDoc.exists && sessionDoc.data()?.userId === decodedToken.uid) {
+      await fdb.collection("sessions").doc(sessionId).delete();
+      // Also delete messages associated with this session
+      const msgSnapshot = await fdb.collection("messages").where("sessionId", "==", sessionId).get();
+      const batch = fdb.batch();
+      msgSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+    }
+    
     res.json({ success: true });
   });
 
   // --- Credits Routes ---
-  app.post("/api/credits/consume", (req, res) => {
-    const userId = req.headers["authorization"];
-    const user = users.get(userId);
+  app.post("/api/credits/consume", authenticate, async (req, res) => {
+    const decodedToken = (req as any).user;
+    const userRef = fdb.collection("users").doc(decodedToken.uid);
+    const userDoc = await userRef.get();
+    const user = userDoc.data();
+
     if (!user || user.credits <= 0) return res.json({ success: false });
-    user.credits -= 1;
+    
+    await userRef.update({ credits: user.credits - 1 });
     res.json({ success: true });
   });
 
-  app.post("/api/upgrade", (req, res) => {
-    const userId = req.headers["authorization"];
+  app.post("/api/upgrade", authenticate, async (req, res) => {
+    const decodedToken = (req as any).user;
     const { tier, credits, transaction } = req.body;
-    const user = users.get(userId);
-    if (user) {
-      user.tier = tier;
-      user.credits = credits;
+    const userRef = fdb.collection("users").doc(decodedToken.uid);
+    const userDoc = await userRef.get();
+
+    if (userDoc.exists) {
+      await userRef.update({ tier, credits });
       if (transaction) {
-        allTransactions.push({ ...transaction, userId });
+        await fdb.collection("transactions").add({ ...transaction, userId: decodedToken.uid });
       }
       res.json({ success: true });
     } else {
@@ -221,69 +242,69 @@ async function startServer() {
     }
   });
 
-  app.get("/api/admin/users", (req, res) => {
-    const userId = req.headers["authorization"];
-    const user = users.get(userId);
-    if (!user || !user.isAdmin) return res.status(403).json({ success: false });
-    res.json({ success: true, data: Array.from(users.values()) });
+  app.get("/api/admin/users", authenticate, async (req, res) => {
+    const decodedToken = (req as any).user;
+    const adminDoc = await fdb.collection("users").doc(decodedToken.uid).get();
+    const adminData = adminDoc.data();
+    
+    if (!adminData || !adminData.isAdmin) return res.status(403).json({ success: false });
+    
+    const snapshot = await fdb.collection("users").get();
+    const usersList = snapshot.docs.map(doc => doc.data());
+    res.json({ success: true, data: usersList });
   });
 
-  app.get("/api/admin/users/:id/transactions", (req, res) => {
-    const userId = req.headers["authorization"];
-    const user = users.get(userId);
-    if (!user || !user.isAdmin) return res.status(403).json({ success: false });
+  app.get("/api/admin/users/:id/transactions", authenticate, async (req, res) => {
+    const decodedToken = (req as any).user;
+    const adminDoc = await fdb.collection("users").doc(decodedToken.uid).get();
+    const adminData = adminDoc.data();
+    if (!adminData || !adminData.isAdmin) return res.status(403).json({ success: false });
     
     const targetUserId = req.params.id;
-    const userTransactions = allTransactions.filter(tx => tx.userId === targetUserId);
+    const snapshot = await fdb.collection("transactions").where("userId", "==", targetUserId).get();
+    const userTransactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.json({ success: true, data: userTransactions });
   });
 
-  app.post("/api/admin/users/:id/status", (req, res) => {
-    const userId = req.headers["authorization"];
-    const user = users.get(userId);
-    if (!user || !user.isAdmin) return res.status(403).json({ success: false });
+  app.post("/api/admin/users/:id/status", authenticate, async (req, res) => {
+    const decodedToken = (req as any).user;
+    const adminDoc = await fdb.collection("users").doc(decodedToken.uid).get();
+    const adminData = adminDoc.data();
+    if (!adminData || !adminData.isAdmin) return res.status(403).json({ success: false });
     
     const targetUserId = req.params.id;
     const { blocked } = req.body;
-    const targetUser = users.get(targetUserId);
-    if (targetUser) {
-      targetUser.blocked = blocked;
-      res.json({ success: true });
-    } else {
-      res.status(404).json({ success: false });
-    }
+    await fdb.collection("users").doc(targetUserId).update({ blocked });
+    res.json({ success: true });
   });
 
-  app.post("/api/admin/users/:id/upgrade", (req, res) => {
-    const userId = req.headers["authorization"];
-    const user = users.get(userId);
-    if (!user || !user.isAdmin) return res.status(403).json({ success: false });
+  app.post("/api/admin/users/:id/upgrade", authenticate, async (req, res) => {
+    const decodedToken = (req as any).user;
+    const adminDoc = await fdb.collection("users").doc(decodedToken.uid).get();
+    const adminData = adminDoc.data();
+    if (!adminData || !adminData.isAdmin) return res.status(403).json({ success: false });
     
     const targetUserId = req.params.id;
     const { tier, credits } = req.body;
-    const targetUser = users.get(targetUserId);
-    if (targetUser) {
-      targetUser.tier = tier;
-      targetUser.credits = credits;
-      res.json({ success: true });
-    } else {
-      res.status(404).json({ success: false });
-    }
+    await fdb.collection("users").doc(targetUserId).update({ tier, credits });
+    res.json({ success: true });
   });
 
-  app.get("/api/admin/settings", (req, res) => {
-    const userId = req.headers["authorization"];
-    const user = users.get(userId);
-    if (!user || !user.isAdmin) {
+  app.get("/api/admin/settings", authenticate, async (req, res) => {
+    const decodedToken = (req as any).user;
+    const adminDoc = await fdb.collection("users").doc(decodedToken.uid).get();
+    const adminData = adminDoc.data();
+    if (!adminData || !adminData.isAdmin) {
       return res.status(403).json({ success: false, error: "Unauthorized" });
     }
     res.json({ success: true, data: { ...platformSettings, plans } });
   });
 
-  app.post("/api/admin/settings", (req, res) => {
-    const userId = req.headers["authorization"];
-    const user = users.get(userId);
-    if (!user || !user.isAdmin) {
+  app.post("/api/admin/settings", authenticate, async (req, res) => {
+    const decodedToken = (req as any).user;
+    const adminDoc = await fdb.collection("users").doc(decodedToken.uid).get();
+    const adminData = adminDoc.data();
+    if (!adminData || !adminData.isAdmin) {
       return res.status(403).json({ success: false, error: "Unauthorized" });
     }
     const { plans: newPlans, ...newSettings } = req.body;
@@ -319,24 +340,35 @@ async function startServer() {
   });
 
   // --- Chat Routes ---
-  app.get("/api/chat/:sessionId/messages", (req, res) => {
+  app.get("/api/chat/:sessionId/messages", authenticate, async (req, res) => {
     const { sessionId } = req.params;
-    const history = messages.get(sessionId) || [];
+    const snapshot = await fdb.collection("messages")
+      .where("sessionId", "==", sessionId)
+      .orderBy("timestamp", "asc")
+      .get();
+    
+    const history = snapshot.docs.map(doc => doc.data());
     res.json({ success: true, data: { messages: history, sessionId, model: platformSettings.aiModel || "gemini-flash-latest" } });
   });
 
-  app.delete("/api/chat/:sessionId/clear", (req, res) => {
+  app.delete("/api/chat/:sessionId/clear", authenticate, async (req, res) => {
     const { sessionId } = req.params;
-    messages.set(sessionId, []);
+    const msgSnapshot = await fdb.collection("messages").where("sessionId", "==", sessionId).get();
+    const batch = fdb.batch();
+    msgSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
     res.json({ success: true });
   });
 
-  app.post("/api/chat/:sessionId/chat", async (req, res) => {
+  app.post("/api/chat/:sessionId/chat", authenticate, async (req, res) => {
     const { sessionId } = req.params;
     const { message, stream } = req.body;
-    const userId = req.headers["authorization"];
+    const decodedToken = (req as any).user;
 
-    const user = users.get(userId);
+    const userRef = fdb.collection("users").doc(decodedToken.uid);
+    const userDoc = await userRef.get();
+    const user = userDoc.data();
+
     if (!user || user.credits <= 0) {
       return res.status(402).json({ success: false, error: "OUT_OF_CREDITS" });
     }
@@ -348,14 +380,18 @@ async function startServer() {
     }
 
     // Update session activity
-    const session = sessions.get(sessionId);
-    if (session) session.lastActive = Date.now();
+    await fdb.collection("sessions").doc(sessionId).update({ lastActive: Date.now() });
 
     // Get history
-    const history = messages.get(sessionId) || [];
+    const snapshot = await fdb.collection("messages")
+      .where("sessionId", "==", sessionId)
+      .orderBy("timestamp", "asc")
+      .get();
+    const history = snapshot.docs.map(doc => doc.data());
     
     // Add user message
-    const userMsg = { id: crypto.randomUUID(), role: "user", content: message, timestamp: Date.now() };
+    const userMsg = { id: crypto.randomUUID(), sessionId, role: "user", content: message, timestamp: Date.now() };
+    await fdb.collection("messages").add(userMsg);
     history.push(userMsg);
 
     const provider = platformSettings.aiProvider || "gemini";
@@ -397,8 +433,8 @@ async function startServer() {
             res.write(chunkText);
           }
 
-          history.push({ id: crypto.randomUUID(), role: "assistant", content: fullText, timestamp: Date.now() });
-          messages.set(sessionId, history);
+          const assistantMsg = { id: crypto.randomUUID(), sessionId, role: "assistant", content: fullText, timestamp: Date.now() };
+          await fdb.collection("messages").add(assistantMsg);
           res.end();
         } catch (err: any) {
           console.error("Gemini Streaming error:", err);
@@ -421,8 +457,9 @@ async function startServer() {
           const response = await chat.sendMessage({ message });
           const text = response.text || "";
 
-          history.push({ id: crypto.randomUUID(), role: "assistant", content: text, timestamp: Date.now() });
-          messages.set(sessionId, history);
+          const assistantMsg = { id: crypto.randomUUID(), sessionId, role: "assistant", content: text, timestamp: Date.now() };
+          await fdb.collection("messages").add(assistantMsg);
+          history.push(assistantMsg);
 
           res.json({ success: true, text, data: { messages: history } });
         } catch (err: any) {
@@ -458,8 +495,8 @@ async function startServer() {
             res.write(content);
           }
 
-          history.push({ id: crypto.randomUUID(), role: "assistant", content: fullText, timestamp: Date.now() });
-          messages.set(sessionId, history);
+          const assistantMsg = { id: crypto.randomUUID(), sessionId, role: "assistant", content: fullText, timestamp: Date.now() };
+          await fdb.collection("messages").add(assistantMsg);
           res.end();
         } catch (err: any) {
           console.error("OpenAI Streaming error:", err);
@@ -477,8 +514,9 @@ async function startServer() {
           });
 
           const text = completion.choices[0]?.message?.content || "";
-          history.push({ id: crypto.randomUUID(), role: "assistant", content: text, timestamp: Date.now() });
-          messages.set(sessionId, history);
+          const assistantMsg = { id: crypto.randomUUID(), sessionId, role: "assistant", content: text, timestamp: Date.now() };
+          await fdb.collection("messages").add(assistantMsg);
+          history.push(assistantMsg);
 
           res.json({ success: true, text, data: { messages: history } });
         } catch (err: any) {
@@ -489,10 +527,12 @@ async function startServer() {
     }
   });
 
-  app.post("/api/verify-ton-tx", async (req, res) => {
+  app.post("/api/verify-ton-tx", authenticate, async (req, res) => {
     const { memo, amount, asset } = req.body;
-    const userId = req.headers["authorization"];
-    const user = users.get(userId);
+    const decodedToken = (req as any).user;
+    const userRef = fdb.collection("users").doc(decodedToken.uid);
+    const userDoc = await userRef.get();
+    const user = userDoc.data();
     if (!user) return res.status(401).json({ success: false });
 
     // Use TonAPI to verify if possible, or fallback to simulated for now if addresses are missing
