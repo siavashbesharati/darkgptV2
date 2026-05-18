@@ -60,6 +60,8 @@
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
     "express": "^5.2.1",
+    "firebase": "^12.13.0",
+    "firebase-admin": "^13.10.0",
     "framer-motion": "^12.23.0",
     "hono": "^4.9.8",
     "immer": "^10.1.1",

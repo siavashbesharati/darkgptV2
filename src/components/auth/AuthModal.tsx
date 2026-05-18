@@ -1,124 +1,172 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Mail, ShieldCheck, Sparkles } from 'lucide-react';
+import { Loader2, Mail, ShieldCheck, Chrome } from 'lucide-react';
 import { toast } from 'sonner';
-import { useStore } from '@/lib/store';
+import { auth } from '@/lib/firebase';
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink
+} from 'firebase/auth';
+
 export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [step, setStep] = useState<'email' | 'otp'>('email');
   const [loading, setLoading] = useState(false);
-  const setAuth = useStore(s => s.setAuth);
-  const handleSendOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [linkSent, setLinkSent] = useState(false);
+
+  // Handle inbound magic link redirection
+  useEffect(() => {
+    if (isSignInWithEmailLink(auth, window.location.href)) {
+      let emailForLink = window.localStorage.getItem('emailForSignIn');
+      if (!emailForLink) {
+        // Fallback if user opened link in a different browser
+        emailForLink = window.prompt('Please provide your email for confirmation');
+      }
+
+      if (emailForLink) {
+        setLoading(true);
+        signInWithEmailLink(auth, emailForLink, window.location.href)
+          .then(() => {
+            window.localStorage.removeItem('emailForSignIn');
+            toast.success("Successfully signed in!");
+            onOpenChange(false);
+          })
+          .catch((error) => {
+            console.error("Link sign-in error:", error);
+            toast.error("Failed to sign in with link. It may be expired.");
+          })
+          .finally(() => setLoading(false));
+      }
+    }
+  }, [onOpenChange]);
+
+  const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-      if (res.ok) {
-        setStep('otp');
-        toast.success("Demo OTP: 123456", {
-          description: "Check the developer console for the system log."
-        });
-      }
-    } catch (e) {
-      toast.error("Failed to send OTP");
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      toast.success("Welcome with Google!");
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error("Google auth error:", error);
+      toast.error("Google sign-in failed.");
     } finally {
       setLoading(false);
     }
   };
-  const handleVerify = async (e: React.FormEvent) => {
+
+  const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    const actionCodeSettings = {
+      // Direct user back to the application
+      url: window.location.origin,
+      handleCodeInApp: true,
+    };
+
     try {
-      const res = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code })
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      // Save email locally to complete the link sign-in process
+      window.localStorage.setItem('emailForSignIn', email);
+      setLinkSent(true);
+      toast.success("Magic link sent!", {
+        description: "Check your email to sign in instantly."
       });
-      const json = await res.json();
-      if (json.success) {
-        setAuth(json.data.user, json.data.token);
-        toast.success("Welcome to Dark GPT!");
-        onOpenChange(false);
-      } else {
-        toast.error(json.error || "Invalid code");
-      }
-    } catch (e) {
-      toast.error("Verification failed");
+    } catch (error: any) {
+      console.error("Link error:", error);
+      toast.error(error.message || "Failed to send magic link.");
     } finally {
       setLoading(false);
     }
   };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[400px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
         <DialogHeader>
           <div className="flex items-center justify-between mb-2">
             <Badge variant="outline" className="bg-cyan-500/10 text-cyan-500 border-cyan-500/20 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> Demo Mode
+              <ShieldCheck className="w-3 h-3" /> Firebase Secure Auth
             </Badge>
           </div>
           <DialogTitle className="flex items-center gap-2">
-            <Mail className="w-5 h-5 text-cyan-500" />
-            {step === 'email' ? 'Welcome to Dark GPT' : 'Check your inbox'}
+            {linkSent ? 'Check your email' : 'Sign in to Dark GPT'}
           </DialogTitle>
           <DialogDescription>
-            {step === 'email' ? 'Enter your email to sign in or create an account.' : 'We sent a 6-digit code to ' + email}
+            {linkSent 
+              ? `We sent a magic sign-in link to ${email}. Just click the link in your inbox.`
+              : 'Sign in with your Google account or receive a magic link.'}
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4">
-          {step === 'email' ? (
-            <form onSubmit={handleSendOTP} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <Button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Send Magic Code
+
+        <div className="py-4 space-y-6">
+          {!linkSent ? (
+            <>
+              <Button 
+                variant="outline" 
+                className="w-full h-11 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3 text-slate-700 dark:text-slate-300 font-medium"
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+              >
+                <Chrome className="w-5 h-5" />
+                Continue with Google
               </Button>
-            </form>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-slate-100 dark:border-slate-800" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white dark:bg-slate-900 px-4 text-slate-500">Or use email link</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleMagicLink} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-xs uppercase tracking-wider text-slate-500">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="name@example.com"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 h-11"
+                  />
+                </div>
+
+                <Button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold h-11" disabled={loading}>
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail className="w-4 h-4 mr-2" />}
+                  Send Magic Link
+                </Button>
+              </form>
+            </>
           ) : (
-            <form onSubmit={handleVerify} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="code">One-Time Password</Label>
-                <Input
-                  id="code"
-                  placeholder="123456"
-                  required
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  maxLength={6}
-                  className="tracking-[0.5em] text-center font-mono font-bold text-lg"
-                />
-                <p className="text-[11px] text-muted-foreground text-center pt-1 italic">
-                  Demo Hint: Use the global code <span className="text-cyan-500 font-bold">123456</span>
-                </p>
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto">
+                <Mail className="w-8 h-8 text-cyan-500" />
               </div>
-              <Button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Verify & Continue
+              <p className="text-sm text-slate-500">
+                Didn't get an email? Check your spam folder or try again.
+              </p>
+              <Button variant="ghost" className="text-cyan-500 text-xs font-semibold" onClick={() => setLinkSent(false)}>
+                Try another method
               </Button>
-              <Button variant="ghost" className="w-full text-xs text-slate-500" onClick={() => setStep('email')}>
-                Back to email
-              </Button>
-            </form>
+            </div>
           )}
+        </div>
+
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+          <p className="text-[10px] text-center text-slate-400">
+            Securely authenticated by Google Firebase.
+          </p>
         </div>
       </DialogContent>
     </Dialog>

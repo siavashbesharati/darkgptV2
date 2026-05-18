@@ -14,6 +14,8 @@ import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { Toaster } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useStore } from "@/lib/store";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 const router = createBrowserRouter([
   {
@@ -48,10 +50,31 @@ const router = createBrowserRouter([
 
 export default function App() {
   const fetchPublicConfig = useStore((state) => state.fetchPublicConfig);
+  const setAuth = useStore((state) => state.setAuth);
+  const logout = useStore((state) => state.logout);
 
   useEffect(() => {
     fetchPublicConfig();
-  }, [fetchPublicConfig]);
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const token = await user.getIdToken();
+        // The store's setAuth needs User object. 
+        // refreshUser will fetch the full profile from backend.
+        setAuth({
+          id: user.uid,
+          email: user.email || '',
+          tier: 'Free', // Initial guess, refreshUser will correct it
+          credits: 0,
+          isAdmin: false
+        }, token);
+      } else {
+        logout();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [fetchPublicConfig, setAuth, logout]);
 
   return (
     <ErrorBoundary>
