@@ -104,12 +104,22 @@ export function CryptoPaymentModal({ plan, open, onOpenChange }: CryptoPaymentMo
               {step === 'confirming' && "Verifying Jetton interaction..."}
             </DialogDescription>
           </DialogHeader>
-          {networkMode === 'testnet' && step !== 'success' && (
-            <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
-              <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
-              <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest leading-tight">
-                Experimental: Testnet mode active.
-              </p>
+
+          {step !== 'success' && (
+            <div className={`mt-4 p-3 rounded-xl border flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300 ${
+              networkMode === 'testnet' 
+                ? 'bg-amber-50/50 border-amber-200 text-amber-800' 
+                : 'bg-rose-50/50 border-rose-200 text-rose-800'
+            }`}>
+              <ShieldAlert className={`w-5 h-5 shrink-0 ${networkMode === 'testnet' ? 'text-amber-600' : 'text-rose-600'}`} />
+              <div className="flex flex-col">
+                <p className="text-[10px] font-black uppercase tracking-widest leading-none mb-1">Network Security Protocol</p>
+                <p className="text-[11px] font-medium leading-tight">
+                  {networkMode === 'testnet' 
+                    ? "SYSTEM SET TO TESTNET. Use Testnet TON/USDT only. Real funds will be lost." 
+                    : "STRICT MAINNET ONLY. Ensure your wallet is on the TON Mainnet before sending."}
+                </p>
+              </div>
             </div>
           )}
           <div className="py-6">

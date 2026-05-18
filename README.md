@@ -41,14 +41,14 @@ npm install
 
 ### Configure Environment
 
-Create a `.env` file in the root directory:
+Dark GPT is designed to be fully manageable via the **Admin Dashboard**. There is **no need** to set environment variables on your server/hosting platform.
 
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-JWT_SECRET=your_secret_at_least_32_chars
-# Optional: Admin setup
-INITIAL_ADMIN_EMAIL=admin@example.com
-```
+1. Start the application.
+2. Log in with the admin email (`siavashbesharati@gmail.com`).
+3. Navigate to the **Command Center** (Admin Dashboard).
+4. Go to **Settings** and configure your AI API keys, network modes, and wallet addresses.
+
+Settings are persisted in a `settings.json` file in the root directory.
 
 ### Local Development
 
@@ -57,6 +57,7 @@ INITIAL_ADMIN_EMAIL=admin@example.com
 npm run dev
 
 # Open http://localhost:3000
+# Go to Admin -> Settings to configure your API keys
 ```
 
 ## ☁️ Deployment

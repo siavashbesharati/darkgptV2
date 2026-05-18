@@ -5,61 +5,91 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import crypto from "node:crypto";
+import fs from "node:fs";
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const SETTINGS_FILE = path.join(process.cwd(), "settings.json");
+
+// Default settings if file doesn't exist
+const DEFAULT_SETTINGS = {
+  aiBaseUrl: "https://gateway.ai.cloudflare.com/v1/",
+  aiApiKey: "",
+  jwtSecret: "ninja-secret-at-least-32-chars-long",
+  maintenanceMode: false,
+  enhancedLogging: true,
+  freeTierLimit: 10,
+  networkMode: "testnet",
+  tonMainnetAddress: "",
+  tonTestnetAddress: "",
+  tonMainnetUsdtAddress: "",
+  tonTestnetUsdtAddress: "EQCxE6mAtC2EBSTCruu06R6pQ83v97V0pEAbV-S965A2s-6R",
+  tonApiUrl: "https://testnet.tonapi.io",
+};
+
+const DEFAULT_PLANS = [
+  {
+    id: "free",
+    name: "Free",
+    price: "0",
+    description: "For hobbyists and explorers",
+    features: ["10 messages per day", "Standard speed", "Community support", "Public workspace"],
+    credits: 10,
+    highlight: false
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: "29",
+    description: "The developer's choice",
+    features: ["Unlimited messages", "Fast generation", "Private workspace", "Advanced MCP Tools", "Priority support"],
+    credits: 1000,
+    highlight: true
+  },
+  {
+    id: "max",
+    name: "Max",
+    price: "99",
+    description: "For heavy duty production",
+    features: ["Everything in Pro", "Custom MCP endpoints", "24/7 dedicated support", "Team collaboration", "Beta access"],
+    credits: 10000,
+    highlight: false
+  }
+];
+
+function loadSettings() {
+  try {
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf-8"));
+      return {
+        platformSettings: data.platformSettings || DEFAULT_SETTINGS,
+        plans: data.plans || DEFAULT_PLANS
+      };
+    }
+  } catch (e) {
+    console.error("Failed to load settings file, using defaults");
+  }
+  return { platformSettings: DEFAULT_SETTINGS, plans: DEFAULT_PLANS };
+}
+
+function saveSettings(platformSettings: any, plans: any) {
+  try {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ platformSettings, plans }, null, 2));
+  } catch (e) {
+    console.error("Failed to save settings file");
+  }
+}
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Initial Platform Settings
-  let platformSettings = {
-    aiBaseUrl: "https://gateway.ai.cloudflare.com/v1/",
-    aiApiKey: process.env.GEMINI_API_KEY || "",
-    maintenanceMode: false,
-    enhancedLogging: true,
-    freeTierLimit: 10,
-    networkMode: process.env.NETWORK_MODE || "testnet",
-    tonMainnetAddress: process.env.TON_MAINNET_ADDRESS || "",
-    tonTestnetAddress: process.env.TON_TESTNET_ADDRESS || "",
-    tonMainnetUsdtAddress: "",
-    tonTestnetUsdtAddress: "EQCxE6mAtC2EBSTCruu06R6pQ83v97V0pEAbV-S965A2s-6R",
-    tonApiUrl: "https://testnet.tonapi.io",
-  };
-
-  // Initial Pricing Plans
-  let plans = [
-    {
-      id: "free",
-      name: "Free",
-      price: "0",
-      description: "For hobbyists and explorers",
-      features: ["10 messages per day", "Standard speed", "Community support", "Public workspace"],
-      credits: 10,
-      highlight: false
-    },
-    {
-      id: "pro",
-      name: "Pro",
-      price: "29",
-      description: "The developer's choice",
-      features: ["Unlimited messages", "Fast generation", "Private workspace", "Advanced MCP Tools", "Priority support"],
-      credits: 1000,
-      highlight: true
-    },
-    {
-      id: "max",
-      name: "Max",
-      price: "99",
-      description: "For heavy duty production",
-      features: ["Everything in Pro", "Custom MCP endpoints", "24/7 dedicated support", "Team collaboration", "Beta access"],
-      credits: 10000,
-      highlight: false
-    }
-  ];
+  // Initial Platform Settings from file
+  const initialData = loadSettings();
+  let platformSettings = initialData.platformSettings;
+  let plans = initialData.plans;
 
   app.use(express.json());
   
@@ -253,6 +283,7 @@ async function startServer() {
     const { plans: newPlans, ...newSettings } = req.body;
     if (newSettings) platformSettings = { ...platformSettings, ...newSettings };
     if (newPlans) plans = newPlans;
+    saveSettings(platformSettings, plans);
     res.json({ success: true });
   });
 
@@ -303,9 +334,9 @@ async function startServer() {
       return res.status(402).json({ success: false, error: "OUT_OF_CREDITS" });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = platformSettings.aiApiKey;
     if (!apiKey) {
-      console.error("GEMINI_API_KEY is not defined in environment variables");
+      console.error("AI API Key is not defined in platform settings");
       return res.status(500).json({ success: false, error: "API_KEY_MISSING" });
     }
 

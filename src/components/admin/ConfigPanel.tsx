@@ -12,6 +12,7 @@ export function ConfigPanel() {
   const [config, setConfig] = useState({
     aiBaseUrl: '',
     aiApiKey: '',
+    jwtSecret: '',
     maintenanceMode: false,
     enhancedLogging: true,
     freeTierLimit: 10,
@@ -93,6 +94,15 @@ export function ConfigPanel() {
                   onChange={(e) => setConfig({ ...config, aiApiKey: e.target.value })}
                   className="bg-background border-border font-mono text-sm"
                   placeholder="cf_api_..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">JWT Secret</Label>
+                <Input
+                  value={config.jwtSecret}
+                  onChange={(e) => setConfig({ ...config, jwtSecret: e.target.value })}
+                  className="bg-background border-border font-mono text-sm"
+                  placeholder="ninja-..."
                 />
               </div>
             </div>

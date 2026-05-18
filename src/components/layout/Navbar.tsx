@@ -4,10 +4,11 @@ import { Code2, Zap, LayoutDashboard, LogOut, User as UserIcon, History } from '
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useStore } from '@/lib/store';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/layout/Logo';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 interface NavbarProps {
   showTrigger?: boolean;
@@ -31,9 +32,7 @@ export function Navbar({ showTrigger = false }: NavbarProps) {
             </div>
           )}
           <Link to="/" className="flex items-center gap-2 group shrink-0">
-            <div className="p-1.5 rounded-lg bg-primary flex items-center justify-center w-8 h-8">
-              <span className="text-lg">🥷</span>
-            </div>
+            <Logo className="w-8 h-8" />
             <span className="font-display font-bold text-xl tracking-tight text-foreground">
               Dark GPT
             </span>
