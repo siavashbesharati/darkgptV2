@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Save, Globe, Key, AlertTriangle, RefreshCcw, Wallet, Network, Coins, ShieldAlert } from 'lucide-react';
+import { Save, Globe, Key, AlertTriangle, RefreshCcw, Wallet, Network, Coins, ShieldAlert, LayoutGrid, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore } from '@/lib/store';
 export function ConfigPanel() {
@@ -22,6 +22,7 @@ export function ConfigPanel() {
     tonMainnetUsdtAddress: '',
     tonTestnetUsdtAddress: '',
     tonApiUrl: '',
+    galleryItems: [] as any[],
     plans: [] as any[]
   });
   const [loading, setLoading] = useState(false);
@@ -243,6 +244,97 @@ export function ConfigPanel() {
                     className="w-20 bg-background border-border font-bold text-center h-8"
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-6 pt-6 border-t border-border">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                <LayoutGrid className="w-3.5 h-3.5" /> App Gallery (Attack Vector Presets)
+              </div>
+              <div className="grid grid-cols-1 gap-6">
+                <div className="flex justify-end">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    className="rounded-xl border-primary/20 hover:bg-primary/5 h-8 text-[10px] uppercase font-black tracking-widest"
+                    onClick={() => {
+                      const newGallery = [...config.galleryItems, { icon: "Sparkles", title: "New preset", description: "Edit me...", prompt: "Enter prompt..." }];
+                      setConfig({ ...config, galleryItems: newGallery });
+                    }}
+                  >
+                    <Plus className="w-3 h-3 mr-1.5" /> Add New Vector
+                  </Button>
+                </div>
+                {config.galleryItems.map((item, idx) => (
+                  <div key={idx} className="p-6 rounded-[2rem] border border-border bg-muted/5 relative group">
+                    <Button 
+                      type="button"
+                      variant="ghost" 
+                      size="icon" 
+                      className="absolute top-4 right-4 text-muted-foreground hover:text-destructive h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => {
+                        const newGallery = config.galleryItems.filter((_, i) => i !== idx);
+                        setConfig({ ...config, galleryItems: newGallery });
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                       <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Icon Name (Lucide)</Label>
+                            <Input
+                              value={item.icon}
+                              onChange={(e) => {
+                                const newGallery = [...config.galleryItems];
+                                newGallery[idx] = { ...item, icon: e.target.value };
+                                setConfig({ ...config, galleryItems: newGallery });
+                              }}
+                              className="bg-background border-border font-mono text-xs"
+                              placeholder="Terminal, Globe, Fingerprint, ShieldAlert..."
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Display Title</Label>
+                            <Input
+                              value={item.title}
+                              onChange={(e) => {
+                                const newGallery = [...config.galleryItems];
+                                newGallery[idx] = { ...item, title: e.target.value };
+                                setConfig({ ...config, galleryItems: newGallery });
+                              }}
+                              className="bg-background border-border font-bold"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Short Description</Label>
+                            <Input
+                              value={item.description}
+                              onChange={(e) => {
+                                const newGallery = [...config.galleryItems];
+                                newGallery[idx] = { ...item, description: e.target.value };
+                                setConfig({ ...config, galleryItems: newGallery });
+                              }}
+                              className="bg-background border-border text-xs"
+                            />
+                          </div>
+                       </div>
+                       <div className="space-y-2">
+                        <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">System Prompt Override</Label>
+                        <textarea
+                          value={item.prompt}
+                          onChange={(e) => {
+                            const newGallery = [...config.galleryItems];
+                            newGallery[idx] = { ...item, prompt: e.target.value };
+                            setConfig({ ...config, galleryItems: newGallery });
+                          }}
+                          className="w-full min-h-[140px] bg-background border border-border rounded-xl p-4 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary/20 resize-none"
+                        />
+                       </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
