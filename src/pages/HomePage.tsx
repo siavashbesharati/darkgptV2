@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/layout/Navbar';
 import { motion } from 'framer-motion';
 export function HomePage() {
-  const frameworks = ["React", "Vue", "TypeScript", "Tailwind", "Vite", "Cloudflare"];
+  const strategies = ["SQL Injection", "DDoS Discovery", "Social Engineering", "Zero-Day Research", "Pentest Automation", "Payload Synthesis", "OSINT Mastery"];
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 overflow-x-hidden">
       <Navbar />
@@ -89,7 +89,7 @@ export function HomePage() {
       </div>
       <div className="py-10 border-y border-border bg-muted/30 overflow-hidden relative">
         <div className="flex gap-20 whitespace-nowrap animate-marquee px-4">
-          {[...frameworks, ...frameworks].map((f, i) => (
+          {[...strategies, ...strategies].map((f, i) => (
             <span key={i} className="text-2xl font-display font-black tracking-tighter italic text-muted-foreground/30 hover:text-primary transition-colors cursor-default">
               {f.toUpperCase()}
             </span>

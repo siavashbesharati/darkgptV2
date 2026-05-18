@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle2, Copy, Loader2, Wallet, ArrowLeft, ShieldAlert, BadgeInfo, ExternalLink, Ticket } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore, Tier } from '@/lib/store';
+import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
  interface CryptoPaymentModalProps {
   plan: any;
@@ -14,6 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 }
 type Step = 'select' | 'pay' | 'confirming' | 'success';
 export function CryptoPaymentModal({ plan, open, onOpenChange }: CryptoPaymentModalProps) {
+  const navigate = useNavigate();
   const planName = plan?.name || '';
   const [step, setStep] = useState<Step>('select');
   const [selectedAsset, setSelectedAsset] = useState<'TON' | 'USDT' | null>(null);
@@ -46,16 +48,17 @@ export function CryptoPaymentModal({ plan, open, onOpenChange }: CryptoPaymentMo
     if (step === 'confirming') {
       const timer = setTimeout(() => {
         const txId = `TON_${uuidv4().slice(0, 8)}`;
-        addTransaction({
+        const transaction = {
           id: txId,
           planName: plan.name,
           asset: selectedAsset || 'Unknown',
           amount: parseFloat(plan.price).toFixed(2),
-          status: 'confirmed',
+          status: 'confirmed' as const,
           memo: invoiceMemo,
           timestamp: Date.now()
-        });
-        upgradeTier(plan.name as Tier, plan.credits);
+        };
+        addTransaction(transaction);
+        upgradeTier(plan.name as Tier, plan.credits, transaction);
         setStep('success');
         toast.success("TON Transaction Confirmed! Project vision unlocked.");
       }, 4000);
@@ -204,7 +207,10 @@ export function CryptoPaymentModal({ plan, open, onOpenChange }: CryptoPaymentMo
                   <h4 className="text-3xl font-black tracking-tighter text-white">SUCCESS!</h4>
                   <p className="text-slate-400 text-sm max-w-[260px]">Invoice {invoiceMemo} verified. Your vision is now unlimited.</p>
                 </div>
-                <Button onClick={() => onOpenChange(false)} className="w-full h-14 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-2xl shadow-xl uppercase tracking-widest">
+                <Button onClick={() => { 
+                  onOpenChange(false);
+                  navigate('/editor');
+                }} className="w-full h-14 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-2xl shadow-xl uppercase tracking-widest">
                   Start Building
                 </Button>
               </div>

@@ -128,7 +128,7 @@ export const useStore = create<AppState>()(
       addTransaction: (tx) => set((state) => ({
         transactions: [tx, ...state.transactions]
       })),
-      upgradeTier: async (tier, credits) => {
+      upgradeTier: async (tier, credits, tx) => {
         const token = get().token;
         if (!token) return;
         const finalCredits = credits ?? (tier === 'Pro' ? 1000 : 10000);
@@ -136,7 +136,7 @@ export const useStore = create<AppState>()(
           const res = await fetch('/api/upgrade', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': token },
-            body: JSON.stringify({ tier, credits: finalCredits })
+            body: JSON.stringify({ tier, credits: finalCredits, transaction: tx })
           });
           if (res.ok) {
             await get().refreshUser();

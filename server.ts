@@ -79,6 +79,7 @@ async function startServer() {
   const sessions = new Map();
   const messages = new Map(); // sessionId -> Message[]
   const otps = new Map();
+  const allTransactions: any[] = [];
 
   // Seed admin user
   const adminId = "admin-123";
@@ -170,11 +171,14 @@ async function startServer() {
 
   app.post("/api/upgrade", (req, res) => {
     const userId = req.headers["authorization"];
-    const { tier, credits } = req.body;
+    const { tier, credits, transaction } = req.body;
     const user = users.get(userId);
     if (user) {
       user.tier = tier;
       user.credits = credits;
+      if (transaction) {
+        allTransactions.push({ ...transaction, userId });
+      }
       res.json({ success: true });
     } else {
       res.status(404).json({ success: false });
@@ -186,6 +190,16 @@ async function startServer() {
     const user = users.get(userId);
     if (!user || !user.isAdmin) return res.status(403).json({ success: false });
     res.json({ success: true, data: Array.from(users.values()) });
+  });
+
+  app.get("/api/admin/users/:id/transactions", (req, res) => {
+    const userId = req.headers["authorization"];
+    const user = users.get(userId);
+    if (!user || !user.isAdmin) return res.status(403).json({ success: false });
+    
+    const targetUserId = req.params.id;
+    const userTransactions = allTransactions.filter(tx => tx.userId === targetUserId);
+    res.json({ success: true, data: userTransactions });
   });
 
   app.post("/api/admin/users/:id/status", (req, res) => {

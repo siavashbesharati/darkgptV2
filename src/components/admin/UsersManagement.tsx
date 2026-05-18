@@ -13,6 +13,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useStore } from '@/lib/store';
@@ -20,6 +27,7 @@ export function UsersManagement() {
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [selectedUserTxs, setSelectedUserTxs] = useState<{user: any, txs: any[]} | null>(null);
   const token = useStore(s => s.token);
   const fetchUsers = useCallback(async () => {
     if (!token) return;
@@ -73,6 +81,20 @@ export function UsersManagement() {
       toast.error("Reset failed due to network error");
     }
   };
+  const fetchUserTransactions = async (user: any) => {
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/transactions`, {
+        headers: { 'Authorization': token || '' }
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSelectedUserTxs({ user, txs: json.data });
+      }
+    } catch (e) {
+      toast.error("Failed to load user transactions");
+    }
+  };
+
   const filteredUsers = users.filter(u => u.email.toLowerCase().includes(search.toLowerCase()));
   return (
     <Card className="bg-card border-border shadow-sm">
@@ -160,8 +182,8 @@ export function UsersManagement() {
                         <DropdownMenuItem onClick={() => resetCredits(user.id)} className="cursor-pointer text-amber-600 dark:text-amber-400">
                           <Zap className="w-4 h-4 mr-2" /> Reset Credits
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer">
-                          <ShieldCheck className="w-4 h-4 mr-2" /> View History
+                        <DropdownMenuItem onClick={() => fetchUserTransactions(user)} className="cursor-pointer">
+                          <ShieldCheck className="w-4 h-4 mr-2" /> View Transactions
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -183,6 +205,52 @@ export function UsersManagement() {
           </Table>
         </div>
       </CardContent>
+
+      <Dialog open={!!selectedUserTxs} onOpenChange={(open) => !open && setSelectedUserTxs(null)}>
+        <DialogContent className="max-w-2xl bg-slate-950 border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle>Transactions: {selectedUserTxs?.user?.email}</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              On-chain tier upgrades and credit purchases for this target.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="rounded-xl border border-white/10 overflow-hidden">
+              <Table>
+                <TableHeader className="bg-white/5">
+                  <TableRow className="border-white/10 hover:bg-transparent">
+                    <TableHead className="text-[10px] font-black uppercase text-slate-400">ID / Memo</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase text-slate-400">Plan</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase text-slate-400">Asset</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase text-slate-400">Value</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase text-slate-400">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedUserTxs?.txs.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-10 text-slate-500 font-mono text-[10px]">NO DATA_RECORDS FOUND</TableCell></TableRow>
+                  ) : selectedUserTxs?.txs.map((tx: any) => (
+                    <TableRow key={tx.id} className="border-white/10 hover:bg-white/5 font-mono text-[11px]">
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="text-cyan-400 font-bold">{tx.id.slice(0, 10)}</span>
+                          <span className="text-slate-500 text-[9px]">{tx.memo}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{tx.planName}</TableCell>
+                      <TableCell>{tx.asset}</TableCell>
+                      <TableCell className="text-emerald-400 font-bold">{tx.amount}</TableCell>
+                      <TableCell>
+                        <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[9px] font-black uppercase">Confirmed</span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
