@@ -465,6 +465,14 @@ class ErrorReporter {
       return { shouldReport: false, reason: "internal_debug" };
     }
 
+    // Skip Vite WebSocket errors (expected in this environment)
+    if (
+      message.includes("[vite] failed to connect to websocket") ||
+      (stack && stack.includes("@vite/client"))
+    ) {
+      return { shouldReport: false, reason: "vite_websocket_error" };
+    }
+
     // Skip React Router future flag warnings
     if (isReactRouterFutureFlagMessage(message)) {
       return { shouldReport: false, reason: "react_router_future_flag" };
@@ -676,6 +684,14 @@ const shouldReportImmediate = (context: ErrorContext): boolean => {
 
   // Skip internal debug messages
   if (message.includes("[ErrorReporter]")) return false;
+
+  // Skip Vite WebSocket errors (expected in this environment)
+  if (
+    message.includes("[vite] failed to connect to websocket") ||
+    (stack && stack.includes("@vite/client"))
+  ) {
+    return false;
+  }
 
   // Skip React Router future flag warnings
   const futurePatterns = [

@@ -5,9 +5,9 @@ export interface ChatResponse {
   error?: string;
 }
 export const MODELS = [
-  { id: 'google-ai-studio/gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-  { id: 'google-ai-studio/gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
-  { id: 'google-ai-studio/gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+  { id: 'gemini-flash-latest', name: 'Gemini 3 Flash' },
+  { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro' },
+  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
 ];
 class ChatService {
   private sessionId: string;

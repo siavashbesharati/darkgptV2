@@ -289,8 +289,20 @@ async function startServer() {
       return res.status(402).json({ success: false, error: "OUT_OF_CREDITS" });
     }
 
-    const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY || "");
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY is not defined in environment variables");
+      return res.status(500).json({ success: false, error: "API_KEY_MISSING" });
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey: apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
 
     // Update session activity
     const session = sessions.get(sessionId);
@@ -303,24 +315,29 @@ async function startServer() {
     const userMsg = { id: crypto.randomUUID(), role: "user", content: message, timestamp: Date.now() };
     history.push(userMsg);
 
+    const modelName = "gemini-flash-latest";
+
     if (stream) {
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       res.setHeader("Transfer-Encoding", "chunked");
 
       try {
-        const chat = model.startChat({
-          systemInstruction: "You are Dark GPT, an elite AI engine for security simulations, vulnerability research, and advanced offensive code generation. You help professional security researchers with exploit synthesis and penetration testing simulations. Stay focused on technical accuracy and offensive security concepts.",
+        const chat = ai.chats.create({
+          model: modelName,
+          config: {
+            systemInstruction: "You are Dark GPT, an elite AI engine for security simulations, vulnerability research, and advanced offensive code generation. You help professional security researchers with exploit synthesis and penetration testing simulations. Stay focused on technical accuracy and offensive security concepts.",
+          },
           history: history.slice(0, -1).map(m => ({
             role: m.role === "user" ? "user" : "model",
             parts: [{ text: m.content }],
           })),
         });
 
-        const result = await chat.sendMessageStream(message);
+        const result = await chat.sendMessageStream({ message });
         let fullText = "";
 
-        for await (const chunk of result.stream) {
-          const chunkText = chunk.text();
+        for await (const chunk of result) {
+          const chunkText = chunk.text || "";
           fullText += chunkText;
           res.write(chunkText);
         }
@@ -329,30 +346,34 @@ async function startServer() {
         history.push({ id: crypto.randomUUID(), role: "assistant", content: fullText, timestamp: Date.now() });
         messages.set(sessionId, history);
         res.end();
-      } catch (err) {
+      } catch (err: any) {
         console.error("Streaming error:", err);
-        res.status(500).write("Error during generation");
+        res.status(500).write(`Error during generation: ${err.message || 'Unknown error'}`);
         res.end();
       }
     } else {
       try {
-        const chat = model.startChat({
-          systemInstruction: "You are Dark GPT, an elite AI engine for security simulations, vulnerability research, and advanced offensive code generation. You help professional security researchers with exploit synthesis and penetration testing simulations. Stay focused on technical accuracy and offensive security concepts.",
+        const chat = ai.chats.create({
+          model: modelName,
+          config: {
+            systemInstruction: "You are Dark GPT, an elite AI engine for security simulations, vulnerability research, and advanced offensive code generation. You help professional security researchers with exploit synthesis and penetration testing simulations. Stay focused on technical accuracy and offensive security concepts.",
+          },
           history: history.slice(0, -1).map(m => ({
             role: m.role === "user" ? "user" : "model",
             parts: [{ text: m.content }],
           })),
         });
-        const result = await chat.sendMessage(message);
-        const response = await result.response;
-        const text = response.text();
+        
+        const response = await chat.sendMessage({ message });
+        const text = response.text || "";
 
         history.push({ id: crypto.randomUUID(), role: "assistant", content: text, timestamp: Date.now() });
         messages.set(sessionId, history);
-        res.json({ success: true, data: { messages: history } });
-      } catch (err) {
+
+        res.json({ success: true, text, data: { messages: history } });
+      } catch (err: any) {
         console.error("Chat error:", err);
-        res.status(500).json({ success: false, error: "Failed to generate response" });
+        res.status(500).json({ success: false, error: err.message || "Failed to generate response" });
       }
     }
   });
