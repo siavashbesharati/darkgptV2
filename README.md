@@ -1,158 +1,119 @@
-# Cloudflare AI Chat Agent
+# 🥷 Dark GPT - Full-Stack AI Chat Agent
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/siavashbesharati/darkgpt-ai)
-
-A production-ready full-stack AI chat application powered by Cloudflare Workers, Agents, and React. Features multi-session conversations, streaming responses, tool calling with MCP integration, and persistent session management using Durable Objects.
+A production-ready, high-performance full-stack AI chat application built with **Express**, **React**, and **TypeScript**. Optimized for the shadows, powered by **Gemini 2.0 Flash**.
 
 ## ✨ Key Features
 
-- **Multi-Session Chat**: Create, switch, and manage unlimited chat sessions with automatic title generation.
-- **Streaming Responses**: Real-time token-by-token streaming for natural conversation feel.
-- **Tool Calling**: Built-in tools (weather, web search) + extensible MCP (Model Context Protocol) integration.
-- **AI Gateway Ready**: Seamless integration with Cloudflare AI Gateway for models like Gemini.
-- **Modern UI**: Responsive React app with Tailwind CSS, shadcn/ui components, and dark mode.
-- **Session Persistence**: Durable Objects handle state with automatic activity tracking.
-- **Production Optimized**: Type-safe TypeScript, error boundaries, client error reporting.
-- **Easy Deployment**: One-click deploy to Cloudflare Workers with Pages integration.
+- **🥷 Ninja-Style UI**: Sleek, high-contrast dark interface with motion-driven transitions.
+- **🚀 Ultra-Fast Chat**: Real-time streaming responses powered by Gemini 2.0 Flash.
+- **💎 Multi-Tier Economy**: Integrated crypto-payment simulation (TON/USDT) for credit-based usage.
+- **🔧 App Gallery**: Pre-built attack vector presets (SQLi, DDoS, Social Engineering) ready to inject into workspace.
+- **🛡️ Admin Command Center**: Manage targets (users), view on-chain transactions, and monitor cluster health.
+- **📈 Scalable Architecture**: Express backend with Vite middleware, ready for containerized deployment.
+- **🔑 Secure Session Management**: JWT-based authentication with persistent state.
 
 ## 🛠️ Tech Stack
 
-- **Backend**: Cloudflare Workers, Hono, Agents SDK, Durable Objects
-- **Frontend**: React 18, Vite, Tailwind CSS, shadcn/ui, React Router, TanStack Query
-- **AI/ML**: Cloudflare AI Gateway, OpenAI SDK, MCP SDK
-- **State**: Zustand, Immer
-- **Tools**: SerpAPI integration, custom web scraping
-- **Dev Tools**: Bun, TypeScript, ESLint, Wrangler
+- **Backend**: Node.js, Express, TypeScript, Google Generative AI (@google/genai)
+- **Frontend**: React 18, Vite, Tailwind CSS, shadcn/ui, motion (framer-motion), Lucide React
+- **Economy**: TON/USDT Payment UI with QR generation
+- **State**: Custom Zustand store for cross-component synchronization
+- **Dev Tools**: TypeScript, ESLint, esbuild (for server bundling)
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) installed
-- Cloudflare account with [AI Gateway](https://developers.cloudflare.com/ai-gateway/) configured
-- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) (`bunx wrangler@latest`)
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [npm](https://www.npmjs.com/) or [pnpm](https://pnpm.io/)
+- A **Gemini API Key** from [Google AI Studio](https://aistudio.google.com/)
 
 ### Installation
 
 ```bash
-# Clone or download the project
-git clone <your-repo> aethercode-ai
-cd aethercode-ai
+# Clone the repository
+git clone <your-repo-url>
+cd dark-gpt
 
 # Install dependencies
-bun install
+npm install
+```
 
-# Generate Worker types
-bunx wrangler types
+### Configure Environment
+
+Create a `.env` file in the root directory:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+JWT_SECRET=your_secret_at_least_32_chars
+# Optional: Admin setup
+INITIAL_ADMIN_EMAIL=admin@example.com
 ```
 
 ### Local Development
 
 ```bash
-# Start dev server (frontend + worker)
-bun dev
+# Start the full-stack dev server (Vite + Express)
+npm run dev
 
-# Open http://localhost:3000 (or your configured PORT)
+# Open http://localhost:3000
 ```
-
-### Configure Environment
-
-Update `wrangler.jsonc`:
-
-```json
-{
-  "vars": {
-    "CF_AI_BASE_URL": "https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/openai",
-    "CF_AI_API_KEY": "{your-api-key}",
-    "SERPAPI_KEY": "{your-serpapi-key}",
-    "OPENROUTER_API_KEY": "{optional}"
-  }
-}
-```
-
-Add secrets for production:
-
-```bash
-bunx wrangler secret put CF_AI_BASE_URL
-bunx wrangler secret put CF_AI_API_KEY
-bunx wrangler secret put SERPAPI_KEY
-```
-
-## 📱 Usage
-
-### Chat Sessions API
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/sessions` | GET | List all sessions |
-| `/api/sessions` | POST | Create new session `{title?, firstMessage?}` |
-| `/api/sessions/:id` | DELETE | Delete session |
-| `/api/sessions/:id/title` | PUT | Update title `{title}` |
-| `/api/chat/:sessionId/chat` | POST | Send message `{message, model?, stream?}` |
-| `/api/chat/:sessionId/messages` | GET | Get conversation |
-| `/api/chat/:sessionId/clear` | DELETE | Clear messages |
-
-### Frontend
-
-- Chat interface auto-manages sessions
-- Model selection (Gemini Flash/Pro)
-- Streaming UI with typing indicators
-- Session sidebar with search/delete
-
-## 🔧 Development Workflow
-
-```bash
-# Type checking
-bun tsc --noEmit
-
-# Lint
-bun lint
-
-# Build for production
-bun build
-
-# Preview production build
-bun preview
-```
-
-**Hot reload**: Frontend auto-reloads. Worker changes require `Ctrl+C` + `bun dev`.
-
-**Custom Tools**: Extend `worker/tools.ts` or add MCP servers to `worker/mcp-client.ts`.
-
-**UI Customization**: Edit `src/pages/HomePage.tsx`, use shadcn components (`@/components/ui/*`).
 
 ## ☁️ Deployment
 
-1. **Configure** `wrangler.jsonc` with your AI Gateway details
-2. **Build** assets: `bun build`
-3. **Deploy**:
+### 1. Build for Production
 
 ```bash
-bunx wrangler deploy
+npm run build
+```
+This command generates:
+- `dist/index.html` & assets (Frontend)
+- `dist/server.cjs` (Bundled Node.js backend)
+
+### 2. Launch
+
+```bash
+npm start
 ```
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/siavashbesharati/darkgpt-ai)
+### Platform Specifics
 
-**Custom Domain**: `bunx wrangler pages publish dist --project-name=your-pages-project`
+#### **Vercel**
+This project is set up as a custom server app. For Vercel, you should use the `vercel.json` provided (or create one) to point to the output. Note: Vercel prefers Serverless Functions, so a long-running Express server might require [Vercel CLI legacy support](https://vercel.com/docs/functions/runtimes/node-js) or conversion to API routes.
 
-**Workers for Platforms**: Integrates seamlessly with Pages Functions or standalone Workers.
+#### **Railway / Render / Heroku**
+1. Connect your GitHub repository.
+2. Set the **Build Command**: `npm run build`
+3. Set the **Start Command**: `npm start`
+4. Add your Environment Variables (`GEMINI_API_KEY`, etc.).
+5. Ensure the platform maps to port `3000`.
+
+#### **Own Server (Docker/VPS)**
+```bash
+# Run with PM2 or Docker
+pm2 start dist/server.cjs --name dark-gpt
+```
+
+## 📱 API Reference
+
+| Endpoint | Method | Role | Description |
+|----------|--------|------|-------------|
+| `/api/chat` | POST | User | Send message and get streamed Gemini response |
+| `/api/auth/login` | POST | Public | Authenticate or Register user |
+| `/api/upgrade` | POST | User | Process simulated payment and upgrade tier |
+| `/api/admin/users` | GET | Admin | List all registered targets |
+| `/api/admin/users/:id/transactions` | GET | Admin | View history of a specific target |
 
 ## 🤝 Contributing
 
-1. Fork & clone
-2. `bun install`
-3. Create feature branch: `git checkout -b feature/awesome-tool`
-4. Commit changes: `git commit -m 'Add awesome tool'`
-5. Push & PR
+1. Fork the codebase.
+2. Create your feature branch (`git checkout -b feature/stealth-mode`).
+3. Commit your changes (`git commit -m 'Add stealth mode'`).
+4. Push to the branch (`git push origin feature/stealth-mode`).
+5. Open a Pull Request.
 
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## 🙌 Support
-
-- [Cloudflare Workers Docs](https://developers.cloudflare.com/workers/)
-- [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/)
-- [Agents SDK](https://developers.cloudflare.com/agents/)
-
-Built with ❤️ by Cloudflare Templates. Questions? [Cloudflare Discord](https://discord.cloudflare.com/)
+Built with 🥷 by the Dark GPT team. Questions? Contact the shadows.
