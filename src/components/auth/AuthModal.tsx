@@ -47,15 +47,20 @@ export function AuthModal({ open, onOpenChange }: { open: boolean; onOpenChange:
   }, [onOpenChange]);
 
   const handleGoogleSignIn = async () => {
-    setLoading(true);
+    const provider = new GoogleAuthProvider();
+    // Start popup immediately
     try {
-      const provider = new GoogleAuthProvider();
+      setLoading(true);
       await signInWithPopup(auth, provider);
       toast.success("Welcome with Google!");
       onOpenChange(false);
     } catch (error: any) {
       console.error("Google auth error:", error);
-      toast.error("Google sign-in failed.");
+      if (error.code === 'auth/popup-blocked') {
+        toast.error("Sign-in popup blocked. Please allow popups for this site.");
+      } else {
+        toast.error("Google sign-in failed.");
+      }
     } finally {
       setLoading(false);
     }

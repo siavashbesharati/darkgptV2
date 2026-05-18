@@ -6,15 +6,24 @@ import OpenAI from "openai";
 import dotenv from "dotenv";
 import crypto from "node:crypto";
 import fs from "node:fs";
-import admin from "firebase-admin";
+import { initializeApp, getApps } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
+
+// Load Firebase Config
+const firebaseConfigPath = path.join(process.cwd(), "firebase-applet-config.json");
+const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf-8"));
 
 dotenv.config();
 
 // Initialize Firebase Admin
-admin.initializeApp({
-  projectId: "gifted-kite-6r8vp"
-});
-const fdb = admin.firestore();
+if (getApps().length === 0) {
+  initializeApp({
+    projectId: firebaseConfig.projectId
+  });
+}
+const fdb = getFirestore(firebaseConfig.firestoreDatabaseId);
+const authAdmin = getAuth();
 
 const SETTINGS_FILE = path.join(process.cwd(), "settings.json");
 
@@ -100,9 +109,19 @@ async function startServer() {
   const PORT = 3000;
 
   // Initial Platform Settings from file
-  const initialData = loadSettings();
-  let platformSettings = initialData.platformSettings;
-  let plans = initialData.plans;
+  let platformSettings: any;
+  let plans: any;
+
+  try {
+    const initialData = loadSettings();
+    platformSettings = initialData.platformSettings;
+    plans = initialData.plans;
+    console.log("Settings loaded successfully.");
+  } catch (e) {
+    console.error("Critical error loading settings, using defaults:", e);
+    platformSettings = DEFAULT_SETTINGS;
+    plans = DEFAULT_PLANS;
+  }
 
   app.use(express.json());
 
@@ -115,7 +134,7 @@ async function startServer() {
 
     const idToken = authHeader.split("Bearer ")[1];
     try {
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const decodedToken = await authAdmin.verifyIdToken(idToken);
       (req as any).user = decodedToken;
       next();
     } catch (error) {
@@ -319,23 +338,43 @@ async function startServer() {
   });
 
   app.get("/api/settings", (req, res) => {
+    try {
+      if (!platformSettings) {
+        throw new Error("Platform settings not initialized");
+      }
+      console.log("Serving settings...");
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({
+        success: true,
+        data: {
+          networkMode: platformSettings.networkMode,
+          activeTonAddress:
+            platformSettings.networkMode === "mainnet"
+              ? platformSettings.tonMainnetAddress
+              : platformSettings.tonTestnetAddress,
+          activeTonUsdtAddress:
+            platformSettings.networkMode === "mainnet"
+              ? platformSettings.tonMainnetUsdtAddress
+              : platformSettings.tonTestnetUsdtAddress,
+          tonMainnetUsdtAddress: platformSettings.tonMainnetUsdtAddress,
+          tonTestnetUsdtAddress: platformSettings.tonTestnetUsdtAddress,
+          tonApiUrl: platformSettings.tonApiUrl,
+          galleryItems: platformSettings.galleryItems,
+        },
+      });
+    } catch (error: any) {
+      console.error("CRITICAL error in /api/settings:", error);
+      res.status(500).json({ success: false, error: error.message || "INTERNAL_SERVER_ERROR" });
+    }
+  });
+
+  app.get("/api/debug-server", (req, res) => {
     res.json({
-      success: true,
-      data: {
-        networkMode: platformSettings.networkMode,
-        activeTonAddress:
-          platformSettings.networkMode === "mainnet"
-            ? platformSettings.tonMainnetAddress
-            : platformSettings.tonTestnetAddress,
-        activeTonUsdtAddress:
-          platformSettings.networkMode === "mainnet"
-            ? platformSettings.tonMainnetUsdtAddress
-            : platformSettings.tonTestnetUsdtAddress,
-        tonMainnetUsdtAddress: platformSettings.tonMainnetUsdtAddress,
-        tonTestnetUsdtAddress: platformSettings.tonTestnetUsdtAddress,
-        tonApiUrl: platformSettings.tonApiUrl,
-        galleryItems: platformSettings.galleryItems,
-      },
+      timestamp: Date.now(),
+      nodeVersion: process.version,
+      env: process.env.NODE_ENV,
+      firebaseProject: firebaseConfig.projectId,
+      hasFdb: !!fdb,
     });
   });
 
@@ -601,9 +640,17 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  try {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  } catch (err) {
+    console.error("Failed to start server listening:", err);
+    process.exit(1);
+  }
 }
 
-startServer();
+startServer().catch(err => {
+  console.error("CRITICAL: startServer failed:", err);
+  process.exit(1);
+});

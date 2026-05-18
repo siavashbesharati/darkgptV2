@@ -19,13 +19,17 @@ export function ProtectedRoute({ children, adminOnly = false }: ProtectedRoutePr
     // Brief delay to allow hydration/refresh to settle
     const timer = setTimeout(() => {
       setIsInitializing(false);
-      if (!isAuthenticated && !token) {
-        setShowAuth(true);
-      }
-    }, 500);
+    }, 2000); // Give it 2s to fetch user
     return () => clearTimeout(timer);
-  }, [isAuthenticated, token]);
-  if (isInitializing || (token && !userExists)) {
+  }, []);
+
+  useEffect(() => {
+    if (!isInitializing && !isAuthenticated && !token) {
+      setShowAuth(true);
+    }
+  }, [isInitializing, isAuthenticated, token]);
+
+  if (isInitializing && !userExists && token) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 gap-4">
         <Loader2 className="w-10 h-10 text-cyan-500 animate-spin" />
@@ -35,7 +39,8 @@ export function ProtectedRoute({ children, adminOnly = false }: ProtectedRoutePr
       </div>
     );
   }
-  if (!isAuthenticated) {
+
+  if (!isAuthenticated && !token) {
     return (
       <>
         <Navigate to="/" replace state={{ from: location }} />

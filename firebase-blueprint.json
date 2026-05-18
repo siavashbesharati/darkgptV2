@@ -8,15 +8,70 @@
         "uid": { "type": "string", "description": "Unique identifier for the user" },
         "email": { "type": "string", "description": "User's email address" },
         "displayName": { "type": "string", "description": "User's display name" },
-        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when the user account was created" }
+        "tier": { "type": "string", "enum": ["Free", "Max"], "description": "User subscription tier" },
+        "credits": { "type": "number", "description": "Remaining AI credits" },
+        "isAdmin": { "type": "boolean", "description": "Admin status" },
+        "blocked": { "type": "boolean", "description": "Whether the user is blocked" },
+        "createdAt": { "type": "number", "description": "Timestamp when the user account was created" }
       },
       "required": ["uid", "email"]
+    },
+    "Session": {
+      "title": "Session",
+      "description": "Chat session",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "lastActive": { "type": "number" }
+      }
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Individual chat message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "content": { "type": "string" },
+        "timestamp": { "type": "number" }
+      }
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Payment or credit transaction",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "asset": { "type": "string" },
+        "type": { "type": "string" },
+        "timestamp": { "type": "number" }
+      }
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
       "description": "User profile documents"
+    },
+    "/sessions/{sessionId}": {
+      "schema": "Session",
+      "description": "Chat sessions"
+    },
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Chat messages (searched by sessionId)"
+    },
+    "/transactions/{txId}": {
+      "schema": "Transaction",
+      "description": "User transactions"
+    },
+    "/test/connection": {
+      "schema": { "type": "object", "properties": {} },
+      "description": "Connection test document"
     }
   }
 }

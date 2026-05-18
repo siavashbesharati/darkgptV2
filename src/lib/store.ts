@@ -71,6 +71,9 @@ export const useStore = create<AppState>()(
       fetchPublicConfig: async () => {
         try {
           const res = await fetch('/api/settings');
+          if (!res.ok) {
+            throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+          }
           const json = await res.json();
           if (json.success && json.data) {
             set((state) => ({
@@ -85,8 +88,8 @@ export const useStore = create<AppState>()(
               }
             }));
           }
-        } catch (e) {
-          console.warn('Failed to fetch public blockchain config', e);
+        } catch (e: any) {
+          console.warn('Failed to fetch public blockchain config:', e.message || e);
         }
       },
       refreshUser: async () => {

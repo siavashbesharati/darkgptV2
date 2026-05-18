@@ -41,14 +41,13 @@ npm install
 
 ### Configure Environment
 
-Dark GPT is designed to be fully manageable via the **Admin Dashboard**. There is **no need** to set environment variables on your server/hosting platform.
+Dark GPT requires a few key secrets to operate in production:
 
-1. Start the application.
-2. Log in with the admin email (`siavashbesharati@gmail.com`).
-3. Navigate to the **Command Center** (Admin Dashboard).
-4. Go to **Settings** and configure your AI API keys, network modes, and wallet addresses.
+1. **Gemini API Key**: Set `GEMINI_API_KEY` in your hosting platform's environment variables.
+2. **Firebase Config**: Ensure `firebase-applet-config.json` is present in the root (for client-side) and `firebase-admin` is initialized (for server-side).
+3. **Admin Email**: The first user to log in with `siavashbesharati@gmail.com` will automatically be granted Admin privileges.
 
-Settings are persisted in a `settings.json` file in the root directory.
+Additional platform settings (AI Model, Network Mode, etc.) can be configured via the **Admin Dashboard** in the app.
 
 ### Local Development
 
@@ -79,15 +78,37 @@ npm start
 
 ### Platform Specifics
 
-#### **Vercel**
-This project is set up as a custom server app. For Vercel, you should use the `vercel.json` provided (or create one) to point to the output. Note: Vercel prefers Serverless Functions, so a long-running Express server might require [Vercel CLI legacy support](https://vercel.com/docs/functions/runtimes/node-js) or conversion to API routes.
+### Platform Specifics
 
-#### **Railway / Render / Heroku**
-1. Connect your GitHub repository.
-2. Set the **Build Command**: `npm run build`
-3. Set the **Start Command**: `npm start`
-4. Add your Environment Variables (`GEMINI_API_KEY`, etc.).
-5. Ensure the platform maps to port `3000`.
+#### **🌐 Custom Domains & Subdomains**
+To run Dark GPT on your own subdomain (e.g., `chat.yourdomain.com`):
+1. **Hosting Choice**: Use **Railway** or **Render** for the most seamless experience with this full-stack Express architecture.
+2. **DNS Configuration**: 
+   - Go to your Domain Provider (GoDaddy, Namecheap, Cloudflare).
+   - Add a `CNAME` record for your subdomain (e.g., `chat`) pointing to the domain provided by your hosting platform (e.g., `dark-gpt.up.railway.app`).
+3. **SSL/HTTPS**: Most platforms like Railway and Vercel will automatically provision an SSL certificate for your custom subdomain once the DNS propagates.
+
+#### **🚅 Railway (Recommended for Full-Stack)**
+1. Connect your GitHub repository to [Railway](https://railway.app/).
+2. Railway will automatically detect the `package.json`.
+3. Go to **Settings** -> **Domains** -> **Add Custom Domain** to link your subdomain.
+4. Ensure `GEMINI_API_KEY` and any Firebase secrets are added in the **Variables** tab.
+
+#### **▲ Vercel**
+1. Connect your repo to Vercel.
+2. Vercel is optimized for Serverless. Since this app uses a long-running Express server, you may need a `vercel.json` to route all requests to the server:
+   ```json
+   {
+     "version": 2,
+     "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+   }
+   ```
+3. Add your custom subdomain in **Project Settings** -> **Domains**.
+
+#### **☁️ Google Cloud Run (Self-Hosted)**
+This app is natively compatible with Cloud Run.
+1. Build the Docker image using the provided `package.json`.
+2. Deploy to Cloud Run and map your custom domain via **Manage Custom Domains** in the GCP Console.
 
 #### **Own Server (Docker/VPS)**
 ```bash

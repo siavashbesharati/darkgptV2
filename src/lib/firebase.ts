@@ -1,24 +1,24 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { initializeFirestore, Firestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Firestore with the database ID from the config
-export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
-export const auth = getAuth(app);
-
-// Connectivity check as recommended by the skill
-async function testConnection() {
-  try {
-    // Attempt to fetch a document from a 'test' collection to verify connectivity
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Firebase is offline. Please check your network or configuration.");
+// Initialize Firestore with settings and the database ID from the config
+let db: Firestore;
+try {
+  db = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+    useFetchStreams: false,
+    localCache: {
+      kind: 'memory' 
     }
-  }
+  }, (firebaseConfig as any).firestoreDatabaseId);
+} catch (e) {
+  // If already initialized, it might throw
+  db = initializeFirestore(app, {});
 }
 
-testConnection();
+export { db };
+export const auth = getAuth(app);
