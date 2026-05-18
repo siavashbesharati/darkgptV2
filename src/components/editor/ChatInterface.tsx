@@ -84,9 +84,8 @@ export function ChatInterface({ onStreamUpdate }: ChatInterfaceProps) {
     }
   }, []);
   useEffect(scrollToBottom, [scrollToBottom, messages, isLoading]);
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim() || isLoading) return;
     if (!token) {
       toast.error("Authentication required");
       return;
@@ -98,14 +97,14 @@ export function ChatInterface({ onStreamUpdate }: ChatInterfaceProps) {
       });
       return;
     }
-    const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content: input, timestamp: Date.now() };
+    const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content: text, timestamp: Date.now() };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
     try {
       let fullStreamedText = "";
       const result = await chatService.sendMessage(
-        input,
+        text,
         undefined,
         (chunk) => {
           fullStreamedText += chunk;
@@ -140,6 +139,11 @@ export function ChatInterface({ onStreamUpdate }: ChatInterfaceProps) {
       setIsLoading(false);
     }
   };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSendMessage(input);
+  };
   const handleClear = async () => {
     const res = await chatService.clearMessages(token ?? undefined);
     if (res.success) {
@@ -157,7 +161,7 @@ export function ChatInterface({ onStreamUpdate }: ChatInterfaceProps) {
   ];
 
   const handlePromptSelect = (prompt: string) => {
-    setInput(prompt);
+    handleSendMessage(prompt);
   };
 
   return (
@@ -218,6 +222,22 @@ export function ChatInterface({ onStreamUpdate }: ChatInterfaceProps) {
       </div>
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-6 max-w-2xl mx-auto">
+          {userCredits <= 0 && (
+            <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between animate-in slide-in-from-top duration-500">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-amber-500/20 text-amber-500">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white leading-tight">Credits Exhausted</p>
+                  <p className="text-[10px] text-zinc-400 font-medium line-clamp-1">Upgrade your tier to bypass restricted node limits.</p>
+                </div>
+              </div>
+              <Button onClick={() => navigate('/pricing')} size="sm" className="bg-amber-500 hover:bg-amber-400 text-black font-black text-[10px] uppercase tracking-widest h-8 rounded-xl px-4 shrink-0 transition-all">
+                Upgrade Now
+              </Button>
+            </div>
+          )}
           {messages.length === 0 && (
             <div className="py-12 flex flex-col items-center text-center space-y-6">
               <div className="p-4 rounded-3xl bg-muted text-primary border border-border">

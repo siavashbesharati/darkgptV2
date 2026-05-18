@@ -155,17 +155,6 @@ export function CryptoPaymentModal({ plan, open, onOpenChange }: CryptoPaymentMo
                     <p className="text-lg font-mono font-bold text-white tracking-widest text-center py-1">{invoiceMemo}</p>
                     <p className="text-[9px] text-slate-500 text-center uppercase font-bold">Include this in the "Comment" field</p>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] text-slate-500 font-black ml-1 uppercase tracking-widest">Target Wallet</label>
-                    <div className="flex gap-2">
-                      <div className="flex-1 p-3.5 bg-black border border-white/10 rounded-xl text-[11px] font-mono text-cyan-400 break-all leading-tight">
-                        {getTargetAddress()}
-                      </div>
-                      <Button variant="outline" size="icon" className="shrink-0 h-12 w-12 rounded-xl border-white/10 hover:bg-white/10" onClick={() => handleCopy(getTargetAddress(), "Address")}>
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-start gap-2">
                       <BadgeInfo className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
