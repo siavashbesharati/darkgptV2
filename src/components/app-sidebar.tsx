@@ -15,7 +15,7 @@ import {
 import { chatService } from "@/lib/chat";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
-import { SessionInfo } from "../../worker/types";
+import { SessionInfo } from "@/types";
 export function AppSidebar(): JSX.Element {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const userCredits = useStore(s => s.user?.credits ?? 0);
@@ -114,7 +114,7 @@ export function AppSidebar(): JSX.Element {
             <span className="text-[10px] font-black uppercase text-primary">{userTier}</span>
           </div>
           <div className="text-[9px] text-muted-foreground px-2 leading-tight font-medium uppercase tracking-tighter">
-            Cloudflare Agent DO limits are shared.
+            Railway Node.js limits are shared.
           </div>
         </div>
       </SidebarFooter>

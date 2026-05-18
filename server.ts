@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import crypto from "node:crypto";
 
 dotenv.config();
 
@@ -13,14 +14,6 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = 3000;
-
-  app.use(express.json());
-
-  // --- In-memory storage ---
-  const users = new Map();
-  const sessions = new Map();
-  const messages = new Map(); // sessionId -> Message[]
-  const otps = new Map();
 
   // Initial Platform Settings
   let platformSettings = {
@@ -67,6 +60,25 @@ async function startServer() {
       highlight: false
     }
   ];
+
+  app.use(express.json());
+  
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok" });
+  });
+
+  app.post("/api/client-errors", (req, res) => {
+    if (platformSettings.enhancedLogging) {
+      console.error("[Client Error Report]:", JSON.stringify(req.body, null, 2));
+    }
+    res.json({ success: true });
+  });
+
+  // --- In-memory storage ---
+  const users = new Map();
+  const sessions = new Map();
+  const messages = new Map(); // sessionId -> Message[]
+  const otps = new Map();
 
   // Seed admin user
   const adminId = "admin-123";
@@ -169,6 +181,46 @@ async function startServer() {
     }
   });
 
+  app.get("/api/admin/users", (req, res) => {
+    const userId = req.headers["authorization"];
+    const user = users.get(userId);
+    if (!user || !user.isAdmin) return res.status(403).json({ success: false });
+    res.json({ success: true, data: Array.from(users.values()) });
+  });
+
+  app.post("/api/admin/users/:id/status", (req, res) => {
+    const userId = req.headers["authorization"];
+    const user = users.get(userId);
+    if (!user || !user.isAdmin) return res.status(403).json({ success: false });
+    
+    const targetUserId = req.params.id;
+    const { blocked } = req.body;
+    const targetUser = users.get(targetUserId);
+    if (targetUser) {
+      targetUser.blocked = blocked;
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ success: false });
+    }
+  });
+
+  app.post("/api/admin/users/:id/upgrade", (req, res) => {
+    const userId = req.headers["authorization"];
+    const user = users.get(userId);
+    if (!user || !user.isAdmin) return res.status(403).json({ success: false });
+    
+    const targetUserId = req.params.id;
+    const { tier, credits } = req.body;
+    const targetUser = users.get(targetUserId);
+    if (targetUser) {
+      targetUser.tier = tier;
+      targetUser.credits = credits;
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ success: false });
+    }
+  });
+
   app.get("/api/admin/settings", (req, res) => {
     const userId = req.headers["authorization"];
     const user = users.get(userId);
@@ -257,6 +309,7 @@ async function startServer() {
 
       try {
         const chat = model.startChat({
+          systemInstruction: "You are Dark GPT, an elite AI engine for security simulations, vulnerability research, and advanced offensive code generation. You help professional security researchers with exploit synthesis and penetration testing simulations. Stay focused on technical accuracy and offensive security concepts.",
           history: history.slice(0, -1).map(m => ({
             role: m.role === "user" ? "user" : "model",
             parts: [{ text: m.content }],
@@ -284,11 +337,12 @@ async function startServer() {
     } else {
       try {
         const chat = model.startChat({
-            history: history.slice(0, -1).map(m => ({
-              role: m.role === "user" ? "user" : "model",
-              parts: [{ text: m.content }],
-            })),
-          });
+          systemInstruction: "You are Dark GPT, an elite AI engine for security simulations, vulnerability research, and advanced offensive code generation. You help professional security researchers with exploit synthesis and penetration testing simulations. Stay focused on technical accuracy and offensive security concepts.",
+          history: history.slice(0, -1).map(m => ({
+            role: m.role === "user" ? "user" : "model",
+            parts: [{ text: m.content }],
+          })),
+        });
         const result = await chat.sendMessage(message);
         const response = await result.response;
         const text = response.text();

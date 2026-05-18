@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { chatService, MODELS } from '@/lib/chat'
-import type { ChatState, Message } from '../../worker/types'
+import type { ChatState, Message } from '@/types'
 
 export const HAS_TEMPLATE_DEMO = true
 

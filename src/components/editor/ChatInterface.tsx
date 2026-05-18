@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Message } from '../../../worker/types';
+import { Message } from '@/types';
 import { useTheme } from '@/hooks/use-theme';
 import {
   AlertDialog,

@@ -7,8 +7,7 @@
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
-    "lint": "eslint --cache -f json --quiet .",
-    "cf-typegen": "wrangler types"
+    "lint": "eslint --cache -f json --quiet ."
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -96,20 +95,20 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.17.1",
-    "@cloudflare/workers-types": "^4.20250424.0",
     "@eslint/js": "^9.22.0",
     "@types/node": "^22.15.3",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.21",
+    "esbuild": "^0.28.0",
     "eslint": "^9.31.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.3.0",
+    "tsx": "^4.22.2",
     "typescript": "5.8",
     "typescript-eslint": "^8.26.1",
     "vite": "^6.3.1"
