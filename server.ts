@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
@@ -10,8 +9,6 @@ import fs from "node:fs";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const SETTINGS_FILE = path.join(process.cwd(), "settings.json");
 
 // Default settings if file doesn't exist
