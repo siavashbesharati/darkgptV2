@@ -4,6 +4,7 @@
  */
 
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { useEffect } from "react";
 import { HomePage } from "@/pages/HomePage";
 import { EditorPage } from "@/pages/EditorPage";
 import { PricingPage } from "@/pages/PricingPage";
@@ -12,6 +13,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { Toaster } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useStore } from "@/lib/store";
 
 const router = createBrowserRouter([
   {
@@ -45,6 +47,12 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
+  const fetchPublicConfig = useStore((state) => state.fetchPublicConfig);
+
+  useEffect(() => {
+    fetchPublicConfig();
+  }, [fetchPublicConfig]);
+
   return (
     <ErrorBoundary>
       <RouterProvider router={router} />

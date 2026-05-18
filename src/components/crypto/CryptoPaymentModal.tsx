@@ -45,24 +45,67 @@ export function CryptoPaymentModal({ plan, open, onOpenChange }: CryptoPaymentMo
     }
   }, [step, invoiceMemo]);
   useEffect(() => {
+    let pollInterval: NodeJS.Timeout;
+
     if (step === 'confirming') {
-      const timer = setTimeout(() => {
-        const txId = `TON_${uuidv4().slice(0, 8)}`;
-        const transaction = {
-          id: txId,
-          planName: plan.name,
-          asset: selectedAsset || 'Unknown',
-          amount: parseFloat(plan.price).toFixed(2),
-          status: 'confirmed' as const,
-          memo: invoiceMemo,
-          timestamp: Date.now()
-        };
-        addTransaction(transaction);
-        upgradeTier(plan.name as Tier, plan.credits, transaction);
-        setStep('success');
-        toast.success("TON Transaction Confirmed! Project vision unlocked.");
-      }, 4000);
-      return () => clearTimeout(timer);
+      const token = useStore.getState().token;
+      
+      const verify = async () => {
+        try {
+          const res = await fetch('/api/verify-ton-tx', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': token || ''
+            },
+            body: JSON.stringify({ 
+              memo: invoiceMemo, 
+              amount: plan.price,
+              asset: selectedAsset 
+            })
+          });
+          const json = await res.json();
+          
+          if (json.success) {
+            const txId = json.txId || `TON_SIM_${uuidv4().slice(0, 8)}`;
+            const transaction = {
+              id: txId,
+              planName: plan.name,
+              asset: selectedAsset || 'Unknown',
+              amount: parseFloat(plan.price).toFixed(2),
+              status: 'confirmed' as const,
+              memo: invoiceMemo,
+              timestamp: Date.now()
+            };
+            addTransaction(transaction);
+            upgradeTier(plan.name as Tier, plan.credits, transaction);
+            setStep('success');
+            toast.success(json.simulated ? "Demo Transaction Confirmed!" : "TON Transaction Confirmed! Project vision unlocked.");
+          }
+        } catch (e) {
+          console.error("Verification poll failed", e);
+        }
+      };
+
+      // Initial check
+      verify();
+      
+      // Poll every 5 seconds
+      pollInterval = setInterval(verify, 5000);
+
+      // Timeout safety (2 minutes)
+      const timeout = setTimeout(() => {
+        if (step === 'confirming') {
+          clearInterval(pollInterval);
+          toast.error("Verification timed out. If you already paid, please contact support with your memo.");
+          setStep('pay');
+        }
+      }, 120000);
+
+      return () => {
+        clearInterval(pollInterval);
+        clearTimeout(timeout);
+      };
     }
   }, [step, plan, selectedAsset, addTransaction, upgradeTier, invoiceMemo]);
   const handleCopy = (text: string, label: string) => {
