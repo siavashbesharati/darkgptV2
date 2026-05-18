@@ -350,15 +350,6 @@ async function startServer() {
       return res.status(500).json({ success: false, error: "API_KEY_MISSING" });
     }
 
-    const ai = new GoogleGenAI({
-      apiKey: apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
-
     // Update session activity
     const session = sessions.get(sessionId);
     if (session) session.lastActive = Date.now();
