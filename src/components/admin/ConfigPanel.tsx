@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { useStore } from '@/lib/store';
 export function ConfigPanel() {
   const [config, setConfig] = useState({
+    aiProvider: 'gemini',
+    aiModel: 'gemini-flash-latest',
     aiBaseUrl: '',
     aiApiKey: '',
     jwtSecret: '',
@@ -77,14 +79,44 @@ export function ConfigPanel() {
             </div>
           </CardHeader>
           <CardContent className="p-8 space-y-6">
+            <div className="flex flex-col md:flex-row gap-8 items-start justify-between p-6 rounded-2xl border border-border bg-muted/20">
+              <div className="space-y-1">
+                <Label className="text-base font-bold">API Engine Provider</Label>
+                <p className="text-xs text-muted-foreground">Select the core LLM orchestration engine.</p>
+              </div>
+              <RadioGroup
+                value={config.aiProvider}
+                onValueChange={(val) => setConfig({ ...config, aiProvider: val })}
+                className="flex items-center gap-4"
+              >
+                <div className="flex items-center space-x-2 bg-background p-3 rounded-xl border border-border">
+                  <RadioGroupItem value="gemini" id="gemini" />
+                  <Label htmlFor="gemini" className="font-bold text-sm cursor-pointer">Google Gemini</Label>
+                </div>
+                <div className="flex items-center space-x-2 bg-background p-3 rounded-xl border border-border">
+                  <RadioGroupItem value="openai" id="openai" />
+                  <Label htmlFor="openai" className="font-bold text-sm cursor-pointer">Venice / OpenAI</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Base URL</Label>
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Model Identifier</Label>
+                <Input
+                  value={config.aiModel}
+                  onChange={(e) => setConfig({ ...config, aiModel: e.target.value })}
+                  className="bg-background border-border font-mono text-sm"
+                  placeholder="e.g. gemini-flash-latest or venice-uncensored..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Base URL (For OpenAI-compatible)</Label>
                 <Input
                   value={config.aiBaseUrl}
                   onChange={(e) => setConfig({ ...config, aiBaseUrl: e.target.value })}
                   className="bg-background border-border font-mono text-sm"
-                  placeholder="https://..."
+                  placeholder="https://api.venice.ai/api/v1"
                 />
               </div>
               <div className="space-y-2">
@@ -94,7 +126,7 @@ export function ConfigPanel() {
                   value={config.aiApiKey}
                   onChange={(e) => setConfig({ ...config, aiApiKey: e.target.value })}
                   className="bg-background border-border font-mono text-sm"
-                  placeholder="cf_api_..."
+                  placeholder="Key for chosen provider..."
                 />
               </div>
               <div className="space-y-2">

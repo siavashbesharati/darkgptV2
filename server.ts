@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 import dotenv from "dotenv";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -15,6 +16,8 @@ const SETTINGS_FILE = path.join(process.cwd(), "settings.json");
 
 // Default settings if file doesn't exist
 const DEFAULT_SETTINGS = {
+  aiProvider: "gemini", // "gemini" or "openai"
+  aiModel: "gemini-flash-latest",
   aiBaseUrl: "https://gateway.ai.cloudflare.com/v1/",
   aiApiKey: "",
   jwtSecret: "ninja-secret-at-least-32-chars-long",
@@ -322,7 +325,7 @@ async function startServer() {
   app.get("/api/chat/:sessionId/messages", (req, res) => {
     const { sessionId } = req.params;
     const history = messages.get(sessionId) || [];
-    res.json({ success: true, data: { messages: history, sessionId, model: "gemini-2.0-flash" } });
+    res.json({ success: true, data: { messages: history, sessionId, model: platformSettings.aiModel || "gemini-flash-latest" } });
   });
 
   app.delete("/api/chat/:sessionId/clear", (req, res) => {
@@ -367,65 +370,133 @@ async function startServer() {
     const userMsg = { id: crypto.randomUUID(), role: "user", content: message, timestamp: Date.now() };
     history.push(userMsg);
 
-    const modelName = "gemini-flash-latest";
+    const provider = platformSettings.aiProvider || "gemini";
+    const modelName = platformSettings.aiModel || "gemini-flash-latest";
+    const systemPrompt = "You are Dark GPT, an elite AI engine for security simulations, vulnerability research, and advanced offensive code generation. You help professional security researchers with exploit synthesis and penetration testing simulations. Stay focused on technical accuracy and offensive security concepts.";
 
-    if (stream) {
-      res.setHeader("Content-Type", "text/plain; charset=utf-8");
-      res.setHeader("Transfer-Encoding", "chunked");
-
-      try {
-        const chat = ai.chats.create({
-          model: modelName,
-          config: {
-            systemInstruction: "You are Dark GPT, an elite AI engine for security simulations, vulnerability research, and advanced offensive code generation. You help professional security researchers with exploit synthesis and penetration testing simulations. Stay focused on technical accuracy and offensive security concepts.",
-          },
-          history: history.slice(0, -1).map(m => ({
-            role: m.role === "user" ? "user" : "model",
-            parts: [{ text: m.content }],
-          })),
-        });
-
-        const result = await chat.sendMessageStream({ message });
-        let fullText = "";
-
-        for await (const chunk of result) {
-          const chunkText = chunk.text || "";
-          fullText += chunkText;
-          res.write(chunkText);
+    if (provider === "gemini") {
+      const ai = new GoogleGenAI({
+        apiKey: apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
         }
+      });
 
-        // Add assistant message to history
-        history.push({ id: crypto.randomUUID(), role: "assistant", content: fullText, timestamp: Date.now() });
-        messages.set(sessionId, history);
-        res.end();
-      } catch (err: any) {
-        console.error("Streaming error:", err);
-        res.status(500).write(`Error during generation: ${err.message || 'Unknown error'}`);
-        res.end();
+      if (stream) {
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("Transfer-Encoding", "chunked");
+
+        try {
+          const chat = ai.chats.create({
+            model: modelName,
+            config: {
+              systemInstruction: systemPrompt,
+            },
+            history: history.slice(0, -1).map(m => ({
+              role: m.role === "user" ? "user" : "model",
+              parts: [{ text: m.content }],
+            })),
+          });
+
+          const result = await chat.sendMessageStream({ message });
+          let fullText = "";
+
+          for await (const chunk of result) {
+            const chunkText = chunk.text || "";
+            fullText += chunkText;
+            res.write(chunkText);
+          }
+
+          history.push({ id: crypto.randomUUID(), role: "assistant", content: fullText, timestamp: Date.now() });
+          messages.set(sessionId, history);
+          res.end();
+        } catch (err: any) {
+          console.error("Gemini Streaming error:", err);
+          res.status(500).write(`Error during generation: ${err.message || 'Unknown error'}`);
+          res.end();
+        }
+      } else {
+        try {
+          const chat = ai.chats.create({
+            model: modelName,
+            config: {
+              systemInstruction: systemPrompt,
+            },
+            history: history.slice(0, -1).map(m => ({
+              role: m.role === "user" ? "user" : "model",
+              parts: [{ text: m.content }],
+            })),
+          });
+          
+          const response = await chat.sendMessage({ message });
+          const text = response.text || "";
+
+          history.push({ id: crypto.randomUUID(), role: "assistant", content: text, timestamp: Date.now() });
+          messages.set(sessionId, history);
+
+          res.json({ success: true, text, data: { messages: history } });
+        } catch (err: any) {
+          console.error("Gemini Chat error:", err);
+          res.status(500).json({ success: false, error: err.message || "Failed to generate response" });
+        }
       }
     } else {
-      try {
-        const chat = ai.chats.create({
-          model: modelName,
-          config: {
-            systemInstruction: "You are Dark GPT, an elite AI engine for security simulations, vulnerability research, and advanced offensive code generation. You help professional security researchers with exploit synthesis and penetration testing simulations. Stay focused on technical accuracy and offensive security concepts.",
-          },
-          history: history.slice(0, -1).map(m => ({
-            role: m.role === "user" ? "user" : "model",
-            parts: [{ text: m.content }],
-          })),
-        });
-        
-        const response = await chat.sendMessage({ message });
-        const text = response.text || "";
+      // OpenAI-compatible (Venice, OpenRouter, etc)
+      const openai = new OpenAI({
+        apiKey: apiKey,
+        baseURL: platformSettings.aiBaseUrl || "https://api.openai.com/v1",
+      });
 
-        history.push({ id: crypto.randomUUID(), role: "assistant", content: text, timestamp: Date.now() });
-        messages.set(sessionId, history);
+      if (stream) {
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("Transfer-Encoding", "chunked");
 
-        res.json({ success: true, text, data: { messages: history } });
-      } catch (err: any) {
-        console.error("Chat error:", err);
-        res.status(500).json({ success: false, error: err.message || "Failed to generate response" });
+        try {
+          const streamResponse = await openai.chat.completions.create({
+            model: modelName,
+            messages: [
+              { role: "system", content: systemPrompt },
+              ...history.map(m => ({ role: m.role as "user" | "assistant", content: m.content }))
+            ],
+            stream: true,
+          });
+
+          let fullText = "";
+          for await (const chunk of streamResponse) {
+            const content = chunk.choices[0]?.delta?.content || "";
+            fullText += content;
+            res.write(content);
+          }
+
+          history.push({ id: crypto.randomUUID(), role: "assistant", content: fullText, timestamp: Date.now() });
+          messages.set(sessionId, history);
+          res.end();
+        } catch (err: any) {
+          console.error("OpenAI Streaming error:", err);
+          res.status(500).write(`Error during generation: ${err.message || 'Unknown error'}`);
+          res.end();
+        }
+      } else {
+        try {
+          const completion = await openai.chat.completions.create({
+            model: modelName,
+            messages: [
+              { role: "system", content: systemPrompt },
+              ...history.map(m => ({ role: m.role as "user" | "assistant", content: m.content }))
+            ],
+          });
+
+          const text = completion.choices[0]?.message?.content || "";
+          history.push({ id: crypto.randomUUID(), role: "assistant", content: text, timestamp: Date.now() });
+          messages.set(sessionId, history);
+
+          res.json({ success: true, text, data: { messages: history } });
+        } catch (err: any) {
+          console.error("OpenAI Chat error:", err);
+          res.status(500).json({ success: false, error: err.message || "Failed to generate response" });
+        }
       }
     }
   });
