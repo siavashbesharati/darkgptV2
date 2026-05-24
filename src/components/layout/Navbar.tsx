@@ -32,7 +32,7 @@ export function Navbar({ showTrigger = false }: NavbarProps) {
             </div>
           )}
           <Link to="/" className="flex items-center gap-2 group shrink-0">
-            <Logo className="w-8 h-8" />
+            <Logo className="w-11 h-11" />
             <span className="font-display font-bold text-xl tracking-tight text-foreground">
               Dark GPT
             </span>

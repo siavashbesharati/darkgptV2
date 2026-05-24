@@ -54,7 +54,7 @@ export function AppSidebar(): JSX.Element {
     <Sidebar className="border-r border-border bg-sidebar">
       <SidebarHeader className="p-4 border-b border-border bg-sidebar/50">
         <div className="flex items-center gap-2 mb-4 px-1">
-          <Logo className="w-8 h-8" />
+          <Logo className="w-11 h-11" />
           <span className="font-display font-bold text-lg tracking-tight text-foreground">Dark GPT</span>
         </div>
         <SidebarMenu>

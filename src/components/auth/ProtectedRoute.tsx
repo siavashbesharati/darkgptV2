@@ -65,11 +65,11 @@ export function ProtectedRoute({ children, adminOnly = false }: ProtectedRoutePr
           className="w-full max-w-md p-8 rounded-3xl border border-border bg-card/60 backdrop-blur-xl shadow-2xl relative z-10 text-center space-y-6"
         >
           {/* Smooth-faded Mask Embed in UI */}
-          <div className="relative w-40 h-40 mx-auto overflow-hidden bg-slate-950/50 rounded-2xl p-1 border border-border/40 shadow-xl group">
+          <div className="relative w-40 h-40 mx-auto overflow-hidden bg-transparent rounded-2xl p-1 shadow-md group">
             <img 
               src="/logo.png" 
               alt="Hacker Protocol" 
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              className="w-[180%] h-[180%] max-w-none object-contain transition-all duration-700 group-hover:scale-110 filter invert brightness-200 -translate-y-[15%] mx-auto"
               referrerPolicy="no-referrer"
             />
             {/* Multi-gradient smooth border fade */}
