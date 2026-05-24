@@ -100,4 +100,13 @@
   .sharp-border {
     border: 1px solid hsl(var(--border));
   }
+  @keyframes scan {
+    0% { transform: translateY(-100%); opacity: 0; }
+    15% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { transform: translateY(1600%); opacity: 0; }
+  }
+  .animate-scan {
+    animation: scan 4.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
 }
